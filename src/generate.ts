@@ -221,6 +221,22 @@ async function generate(tools: Tool[]): Promise<Graph> {
     return remaining.every((t) => typeTokens.includes(t)) ? 5 : 0;
   }
 
+  // Fields required by a large fraction of all tools (owner, repo, org, ...) are boilerplate
+  // context the caller always supplies directly, never something looked up from another
+  // tool's output — even a rare accidental leaf-name match for these is noise, not a real
+  // dependency, so we exclude them from matching entirely rather than by threshold tuning.
+  const inputFrequency = new Map<string, number>();
+  for (const tool of toolBySlug.values()) {
+    for (const input of requiredInputsOf(tool)) {
+      inputFrequency.set(input.name, (inputFrequency.get(input.name) ?? 0) + 1);
+    }
+  }
+  const CONTEXT_FIELD_RATIO = 0.15;
+  const totalTools = toolBySlug.size;
+  function isContextField(name: string): boolean {
+    return (inputFrequency.get(name) ?? 0) / totalTools > CONTEXT_FIELD_RATIO;
+  }
+
   const SCORE_THRESHOLD = 4;
   const MAX_PRODUCERS_PER_FIELD = 3;
   const edges: Edge[] = [];
@@ -228,6 +244,7 @@ async function generate(tools: Tool[]): Promise<Graph> {
 
   for (const [consumerSlug, tool] of toolBySlug) {
     for (const input of requiredInputsOf(tool)) {
+      if (isContextField(input.name)) continue;
       const candidates: { slug: string; score: number }[] = [];
       for (const [producerSlug, fields] of outputsByTool) {
         if (producerSlug === consumerSlug) continue;
