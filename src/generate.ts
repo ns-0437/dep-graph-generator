@@ -243,10 +243,16 @@ async function generate(tools: Tool[]): Promise<Graph> {
   const edges: Edge[] = [];
   const seen = new Set<string>();
   const unresolved: { consumer: string; field: InputField }[] = [];
+  let contextFieldsSkipped = 0;
+  let requiredFieldsTotal = 0;
 
   for (const [consumerSlug, tool] of toolBySlug) {
     for (const input of requiredInputsOf(tool)) {
-      if (isContextField(input.name)) continue;
+      requiredFieldsTotal++;
+      if (isContextField(input.name)) {
+        contextFieldsSkipped++;
+        continue;
+      }
       const candidates: { slug: string; score: number }[] = [];
       for (const [producerSlug, fields] of outputsByTool) {
         if (producerSlug === consumerSlug) continue;
@@ -268,6 +274,8 @@ async function generate(tools: Tool[]): Promise<Graph> {
     }
   }
 
+  const heuristicEdgeCount = edges.length;
+
   const llmEdges = await llmDisambiguate(unresolved, outputsByTool);
   for (const e of llmEdges) {
     const key = `${e.from}->${e.to}->${e.label}`;
@@ -275,6 +283,12 @@ async function generate(tools: Tool[]): Promise<Graph> {
     seen.add(key);
     edges.push(e);
   }
+
+  console.error(
+    `[generate] required fields: ${requiredFieldsTotal} total, ${contextFieldsSkipped} treated as caller-supplied context (skipped), ` +
+      `${unresolved.length} unresolved by heuristics (sent to LLM if credentials present). ` +
+      `edges: ${heuristicEdgeCount} from heuristics, ${edges.length - heuristicEdgeCount} from LLM disambiguation.`,
+  );
 
   return { nodes, edges };
 }
