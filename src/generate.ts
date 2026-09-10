@@ -419,6 +419,8 @@ function renderVisualizationHtml(graph: Graph): string {
   #tooltip .slug { color:#8ab4ff; font-weight:600; }
   #search { background:#1b2028; border:1px solid #333c4a; color:#e6e6e6; padding:5px 9px; border-radius:6px; font-size:13px; width:260px; }
   #legend { position:fixed; bottom:10px; left:10px; font-size:11px; color:#8a93a6; background:#12151cd0; padding:8px 10px; border-radius:6px; max-width:220px; }
+  #toolbar a { color:#8ab4ff; text-decoration:none; margin-left:auto; }
+  #toolbar a:hover { text-decoration:underline; }
 </style>
 </head>
 <body>
@@ -428,6 +430,7 @@ function renderVisualizationHtml(graph: Graph): string {
   <label><input type="checkbox" id="show-isolated" /> show tools with no edges</label>
   <input id="search" placeholder="filter by slug substring..." />
   <span id="match-count" style="color:#8a93a6"></span>
+  <a href="https://github.com/ns-0437/dep-graph-generator" target="_blank" rel="noopener">View source on GitHub</a>
 </div>
 <div id="wrap"><canvas id="c"></canvas></div>
 <div id="tooltip"></div>
