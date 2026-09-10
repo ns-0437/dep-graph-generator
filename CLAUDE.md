@@ -71,6 +71,44 @@ whatever base URL is provided, use a model like `openai/gpt-4o`. Batch multiple
 field-matching questions per call rather than one call per candidate pair (893 tools means
 O(n^2) naive pairing is way too expensive).
 
+## Design decisions & known limitations
+
+Current thresholds in `src/generate.ts` (tune here if quality needs adjusting):
+- `SCORE_THRESHOLD = 4` — minimum match score to accept an edge. Score 5 = leaf name's
+  tokens are a subset of the input's tokens AND the leftover input tokens match the
+  producer field's owning type name (e.g. `issue_number` = `number` + `issue`, and `issue`
+  matches type `Issue`). Score 4 = leaf name equals the input name exactly and isn't a
+  generic/common field. Score 1 = exact match but the field name is too generic to trust
+  alone (dropped, below threshold).
+- `GENERIC_THRESHOLD = 25` — a leaf field name produced by more than 25 different tools
+  (e.g. `id`, `name`, `url`) is "generic": an exact-name match alone isn't accepted for it,
+  it needs type-name corroboration (score 5) instead.
+- `CONTEXT_FIELD_RATIO = 0.15` plus `CONTEXT_FIELD_MIN_COUNT = 20` — a required input name
+  needed by more than 15% of all tools *and* at least 20 tools is treated as caller-supplied
+  context, never producer-supplied, and excluded from matching entirely. For the GitHub
+  catalog this catches `owner` (49%), `repo` (49%), and `org` (21%) — before this filter the
+  generator produced ~4000 edges, nearly half of them `owner`/`repo`/`org` noise from
+  coincidental leaf-name matches; after it, ~2100 edges, with both dependency patterns the
+  original README calls out (`issue_number`, `pull_number`) still correctly present. The
+  absolute floor matters for generalization to small toolkits: `test-fixtures/
+  fake_slack_catalog.json` is a 2-tool catalog where a ratio-only filter wrongly treated a
+  field required by 1 of 2 tools (50%) as "boilerplate", producing 0 edges — a field needing
+  a majority of a handful of tools isn't evidence of anything without a real sample size.
+- Against `github_catalog.json`: 2025 required fields total, 1073 excluded as context, 227
+  unresolved by heuristics and handed to the LLM. 893 nodes (provenance 1.0), ~2100 edges
+  heuristically, plus whatever the LLM resolves on top when credentials are present.
+
+Known limitations (heuristic can't catch these):
+- Input names that don't literally contain the producer field's name at all — e.g. an input
+  `base_branch` wanting a `Branch.name` field — score 0 immediately because `name` isn't a
+  substring of `base_branch`'s tokens. The LLM disambiguation pass can catch some of these
+  (it's given loose token-overlap candidates, not just heuristic-passing ones), but only for
+  fields with zero heuristic candidates, and only if any candidate has token overlap at all.
+- A handful of single-generic-English-word required fields (e.g. `value`) can still produce
+  an occasional false-positive edge if a rare output field happens to share that exact name
+  with type-name-independent score 4 — the frequency-based genericity check only catches
+  fields common enough to have >25 occurrences across the catalog.
+
 ## Commands
 
 ```bash
