@@ -523,8 +523,10 @@ const GRAPH = ${JSON.stringify(graph)};
   let highlight = null;
 
   function resize() {
-    canvas.width = canvas.clientWidth = window.innerWidth;
-    canvas.height = canvas.clientHeight = window.innerHeight - 46;
+    canvas.style.width = window.innerWidth + "px";
+    canvas.style.height = (window.innerHeight - 46) + "px";
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight - 46;
   }
   window.addEventListener("resize", () => { resize(); draw(); });
 
