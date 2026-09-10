@@ -127,6 +127,55 @@ function requiredInputsOf(tool: Tool): InputField[] {
   return required.map((name) => ({ name, tokens: tokenize(name) }));
 }
 
+const SERVICE_KEYWORDS = [
+  "pull_request",
+  "issue",
+  "repository",
+  "comment",
+  "label",
+  "milestone",
+  "branch",
+  "commit",
+  "release",
+  "workflow",
+  "gist",
+  "organization",
+  "team",
+  "user",
+  "webhook",
+  "review",
+  "tag",
+  "content",
+  "file",
+  "discussion",
+  "project",
+  "check",
+  "action",
+  "collaborator",
+  "fork",
+  "star",
+  "notification",
+  "deployment",
+  "artifact",
+  "secret",
+  "environment",
+  "migration",
+  "invitation",
+  "membership",
+];
+
+/** Best-effort category derived from the slug itself, e.g. GITHUB_CREATE_AN_ISSUE -> "issues". */
+function guessService(slug: string): string | undefined {
+  const rest = tokenize(slug).slice(1);
+  for (const kw of SERVICE_KEYWORDS) {
+    const kwTokens = tokenize(kw);
+    if (kwTokens.every((k) => rest.includes(k))) {
+      return kwTokens.map((k) => (k.endsWith("s") ? k : k + "s")).join("_");
+    }
+  }
+  return rest[0];
+}
+
 /**
  * TODO: this is a placeholder. Every tool becomes a node, no edges yet — passes the
  * "node ids are real slugs" check but scores ~0 on correctness until dependency
@@ -136,7 +185,7 @@ async function generate(tools: Tool[]): Promise<Graph> {
   const nodes: Node[] = tools
     .map(slugOf)
     .filter((s): s is string => !!s)
-    .map((id) => ({ id }));
+    .map((id) => ({ id, service: guessService(id) }));
   const edges: Edge[] = [];
   return { nodes, edges };
 }
