@@ -36,6 +36,18 @@ Grading is via `npm run selfcheck` style checks:
 - `graph.html` — visualization (nodes/edges you can see), embeds the graph data inline,
   rendered client-side with a hand-rolled canvas force layout. No build/server needed.
 - `dependency_graph.json` — generator output. Gitignored (regenerated on demand).
+- `index.html` — redirects the bare GitHub Pages URL to `graph.html` (the generator writes
+  `graph.html`, not `index.html`, so Pages would 404 at the root without this).
+- `.nojekyll` — tells GitHub Pages to serve files as-is, skipping Jekyll processing.
+
+## Deployment
+
+`graph.html` is published live at https://ns-0437.github.io/dep-graph-generator/ via GitHub
+Pages (source: `main` branch, root). Since `graph.html` is fully self-contained (the graph
+data is embedded inline, not fetched), redeploying it just means regenerating the file and
+pushing — `npm run generate -- github_catalog.json` followed by a commit and push. There's
+no CI wiring this up automatically yet; it's a manual step after changing `generate.ts` or
+the catalog.
 
 ## Output schema (must match exactly)
 
