@@ -116,6 +116,17 @@ function flattenOutputs(tool: Tool): OutField[] {
   return results;
 }
 
+interface InputField {
+  name: string;
+  tokens: string[];
+}
+
+function requiredInputsOf(tool: Tool): InputField[] {
+  const schema = tool.inputParameters;
+  const required: string[] = schema?.required ?? [];
+  return required.map((name) => ({ name, tokens: tokenize(name) }));
+}
+
 /**
  * TODO: this is a placeholder. Every tool becomes a node, no edges yet — passes the
  * "node ids are real slugs" check but scores ~0 on correctness until dependency
