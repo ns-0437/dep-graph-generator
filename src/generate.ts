@@ -265,6 +265,38 @@ async function generate(tools: Tool[]): Promise<Graph> {
   return { nodes, edges };
 }
 
+/**
+ * Loosely-matching candidates for a required field the heuristic couldn't resolve: any
+ * output leaf sharing at least one token with the input name, ranked by overlap. Used to
+ * hand an LLM a short, pre-filtered multiple-choice list instead of the entire catalog.
+ */
+function looseCandidates(
+  input: InputField,
+  consumerSlug: string,
+  outputsByTool: Map<string, OutField[]>,
+  limit: number,
+) {
+  const scored: { slug: string; leaf: string; type: string; overlap: number }[] = [];
+  for (const [slug, fields] of outputsByTool) {
+    if (slug === consumerSlug) continue;
+    for (const f of fields) {
+      const overlap = tokenize(f.name).filter((t) => input.tokens.includes(t)).length;
+      if (overlap > 0) scored.push({ slug, leaf: f.name, type: f.parentType, overlap });
+    }
+  }
+  scored.sort((a, b) => b.overlap - a.overlap);
+  const seenKey = new Set<string>();
+  const out: typeof scored = [];
+  for (const s of scored) {
+    const key = `${s.slug}:${s.leaf}`;
+    if (seenKey.has(key)) continue;
+    seenKey.add(key);
+    out.push(s);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 async function main() {
   const graph = await generate(loadCatalog());
   writeFileSync(OUT_PATH, JSON.stringify(graph, null, 2), "utf-8");
