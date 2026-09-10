@@ -176,17 +176,75 @@ function guessService(slug: string): string | undefined {
   return rest[0];
 }
 
-/**
- * TODO: this is a placeholder. Every tool becomes a node, no edges yet — passes the
- * "node ids are real slugs" check but scores ~0 on correctness until dependency
- * inference is added.
- */
 async function generate(tools: Tool[]): Promise<Graph> {
-  const nodes: Node[] = tools
-    .map(slugOf)
-    .filter((s): s is string => !!s)
-    .map((id) => ({ id, service: guessService(id) }));
+  const toolBySlug = new Map<string, Tool>();
+  const nodes: Node[] = [];
+  for (const t of tools) {
+    const id = slugOf(t);
+    if (!id) continue;
+    toolBySlug.set(id, t);
+    nodes.push({ id, service: guessService(id) });
+  }
+
+  const outputsByTool = new Map<string, OutField[]>();
+  const leafFrequency = new Map<string, Set<string>>();
+  for (const [slug, tool] of toolBySlug) {
+    const fields = flattenOutputs(tool);
+    outputsByTool.set(slug, fields);
+    for (const f of fields) {
+      const key = tokenize(f.name).join("_");
+      if (!leafFrequency.has(key)) leafFrequency.set(key, new Set());
+      leafFrequency.get(key)!.add(slug);
+    }
+  }
+  // A leaf name produced by many tools (id, name, url, ...) is too weak a signal on its
+  // own; only accept it without type-name corroboration when it's actually rare.
+  const GENERIC_THRESHOLD = 25;
+  function isGeneric(leafName: string): boolean {
+    const key = tokenize(leafName).join("_");
+    return (leafFrequency.get(key)?.size ?? 0) > GENERIC_THRESHOLD;
+  }
+
+  /**
+   * Score a required input field against one candidate output leaf field. The core idea:
+   * `issue_number` tokenizes to {issue, number}. If the leaf field's tokens ({number}) are
+   * a subset of the input's tokens, and the *leftover* tokens ({issue}) match the leaf's
+   * owning type name (Issue), that's strong evidence of a real dependency — without ever
+   * hardcoding "issue_number" or "Issue" anywhere.
+   */
+  function matchScore(input: InputField, field: OutField): number {
+    const leafTokens = tokenize(field.name);
+    if (!leafTokens.every((t) => input.tokens.includes(t))) return 0;
+    const remaining = input.tokens.filter((t) => !leafTokens.includes(t));
+    if (remaining.length === 0) return isGeneric(field.name) ? 1 : 4;
+    const typeTokens = tokenize(field.parentType);
+    return remaining.every((t) => typeTokens.includes(t)) ? 5 : 0;
+  }
+
+  const SCORE_THRESHOLD = 4;
+  const MAX_PRODUCERS_PER_FIELD = 3;
   const edges: Edge[] = [];
+  const seen = new Set<string>();
+
+  for (const [consumerSlug, tool] of toolBySlug) {
+    for (const input of requiredInputsOf(tool)) {
+      const candidates: { slug: string; score: number }[] = [];
+      for (const [producerSlug, fields] of outputsByTool) {
+        if (producerSlug === consumerSlug) continue;
+        let best = 0;
+        for (const f of fields) best = Math.max(best, matchScore(input, f));
+        if (best >= SCORE_THRESHOLD) candidates.push({ slug: producerSlug, score: best });
+      }
+      candidates.sort((a, b) => b.score - a.score);
+      for (const c of candidates.slice(0, MAX_PRODUCERS_PER_FIELD)) {
+        const key = `${c.slug}->${consumerSlug}->${input.name}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        edges.push({ from: c.slug, to: consumerSlug, label: input.name });
+      }
+    }
+  }
+
   return { nodes, edges };
 }
 
