@@ -242,6 +242,7 @@ async function generate(tools: Tool[]): Promise<Graph> {
   const MAX_PRODUCERS_PER_FIELD = 3;
   const edges: Edge[] = [];
   const seen = new Set<string>();
+  const unresolved: { consumer: string; field: InputField }[] = [];
 
   for (const [consumerSlug, tool] of toolBySlug) {
     for (const input of requiredInputsOf(tool)) {
@@ -253,6 +254,10 @@ async function generate(tools: Tool[]): Promise<Graph> {
         for (const f of fields) best = Math.max(best, matchScore(input, f));
         if (best >= SCORE_THRESHOLD) candidates.push({ slug: producerSlug, score: best });
       }
+      if (candidates.length === 0) {
+        unresolved.push({ consumer: consumerSlug, field: input });
+        continue;
+      }
       candidates.sort((a, b) => b.score - a.score);
       for (const c of candidates.slice(0, MAX_PRODUCERS_PER_FIELD)) {
         const key = `${c.slug}->${consumerSlug}->${input.name}`;
@@ -261,6 +266,14 @@ async function generate(tools: Tool[]): Promise<Graph> {
         edges.push({ from: c.slug, to: consumerSlug, label: input.name });
       }
     }
+  }
+
+  const llmEdges = await llmDisambiguate(unresolved, outputsByTool);
+  for (const e of llmEdges) {
+    const key = `${e.from}->${e.to}->${e.label}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    edges.push(e);
   }
 
   return { nodes, edges };
