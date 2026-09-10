@@ -232,10 +232,16 @@ async function generate(tools: Tool[]): Promise<Graph> {
       inputFrequency.set(input.name, (inputFrequency.get(input.name) ?? 0) + 1);
     }
   }
+  // Both an absolute floor and a ratio: small catalogs can have a field required by most
+  // (or all) of their handful of tools without it being boilerplate context -- e.g. 1/2
+  // tools needing `channel_id` in a 2-tool catalog is not evidence of anything. The pattern
+  // only becomes meaningful once there's a reasonable sample size behind it.
   const CONTEXT_FIELD_RATIO = 0.15;
+  const CONTEXT_FIELD_MIN_COUNT = 20;
   const totalTools = toolBySlug.size;
   function isContextField(name: string): boolean {
-    return (inputFrequency.get(name) ?? 0) / totalTools > CONTEXT_FIELD_RATIO;
+    const count = inputFrequency.get(name) ?? 0;
+    return count >= CONTEXT_FIELD_MIN_COUNT && count / totalTools > CONTEXT_FIELD_RATIO;
   }
 
   const SCORE_THRESHOLD = 4;
