@@ -1,0 +1,58 @@
+[
+  {
+    "slug": "SLACK_LIST_CHANNELS",
+    "name": "List Channels",
+    "description": "List channels in a workspace.",
+    "inputParameters": { "type": "object", "properties": {}, "required": [] },
+    "outputParameters": {
+      "type": "object",
+      "properties": {
+        "data": { "$ref": "#/$defs/ListChannelsResponse" },
+        "successful": { "type": "boolean" }
+      },
+      "required": ["data", "successful"],
+      "$defs": {
+        "Channel": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "name": { "type": "string" }
+          }
+        },
+        "ListChannelsResponse": {
+          "type": "object",
+          "properties": {
+            "channels": { "type": "array", "items": { "$ref": "#/$defs/Channel" } }
+          }
+        }
+      }
+    }
+  },
+  {
+    "slug": "SLACK_SEND_MESSAGE",
+    "name": "Send Message",
+    "description": "Send a message to a channel.",
+    "inputParameters": {
+      "type": "object",
+      "properties": {
+        "channel_id": { "type": "string" },
+        "text": { "type": "string" }
+      },
+      "required": ["channel_id", "text"]
+    },
+    "outputParameters": {
+      "type": "object",
+      "properties": {
+        "data": { "$ref": "#/$defs/SendMessageResponse" },
+        "successful": { "type": "boolean" }
+      },
+      "required": ["data", "successful"],
+      "$defs": {
+        "SendMessageResponse": {
+          "type": "object",
+          "properties": { "ts": { "type": "string" } }
+        }
+      }
+    }
+  }
+]
