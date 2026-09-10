@@ -1,5 +1,16 @@
 # build a tool dependency graph generator (60-120 mins)
 
+## Live visualization
+
+**https://ns-0437.github.io/dep-graph-generator/** — the generated dependency graph for the
+GitHub toolkit (893 tools, 2107 edges), rendered live via GitHub Pages. Pan/zoom, search by
+slug substring, and click a node to see what it supplies to and needs from other tools.
+
+See [CLAUDE.md](CLAUDE.md) for how the matching actually works and the design decisions
+behind it.
+
+---
+
 we care about the quality and structure of the dependency relationships you discover
 
 some actions need precursor actions before being able to execute them
