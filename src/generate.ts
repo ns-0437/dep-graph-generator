@@ -7,21 +7,8 @@
  */
 import { readFileSync, writeFileSync } from "fs";
 import OpenAI from "openai";
-
-type Tool = Record<string, any>;
-interface Node {
-  id: string;
-  service?: string;
-}
-interface Edge {
-  from: string;
-  to: string;
-  label?: string;
-}
-interface Graph {
-  nodes: Node[];
-  edges: Edge[];
-}
+import { singularize, tokenize } from "./lib/tokenize.js";
+import type { Tool, GraphNode, Edge, Graph, OutField, InputField } from "./types.js";
 
 const CATALOG_PATH = process.argv.length > 2 ? process.argv[process.argv.length - 1] : undefined;
 const OUT_PATH = "dependency_graph.json";
@@ -36,28 +23,6 @@ function loadCatalog(): Tool[] {
 
 function slugOf(tool: Tool): string | undefined {
   return tool.slug ?? tool.name ?? tool.function?.name;
-}
-
-function singularize(t: string): string {
-  if (t.length > 3 && t.endsWith("ies")) return t.slice(0, -3) + "y";
-  if (t.length > 3 && t.endsWith("ses")) return t.slice(0, -2);
-  if (t.length > 3 && t.endsWith("s") && !t.endsWith("ss")) return t.slice(0, -1);
-  return t;
-}
-
-/** camelCase / snake_case -> lowercase, singularized tokens, e.g. "issue_number" -> ["issue","number"]. */
-function tokenize(name: string): string[] {
-  return name
-    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
-    .split(/[_\-\s]+/)
-    .filter(Boolean)
-    .map((t) => singularize(t.toLowerCase()));
-}
-
-interface OutField {
-  name: string;
-  parentType: string;
-  path: string;
 }
 
 /**
@@ -117,11 +82,6 @@ function flattenOutputs(tool: Tool): OutField[] {
   return results;
 }
 
-interface InputField {
-  name: string;
-  tokens: string[];
-}
-
 function requiredInputsOf(tool: Tool): InputField[] {
   const schema = tool.inputParameters;
   const required: string[] = schema?.required ?? [];
@@ -179,7 +139,7 @@ function guessService(slug: string): string | undefined {
 
 async function generate(tools: Tool[]): Promise<Graph> {
   const toolBySlug = new Map<string, Tool>();
-  const nodes: Node[] = [];
+  const nodes: GraphNode[] = [];
   for (const t of tools) {
     const id = slugOf(t);
     if (!id) continue;
