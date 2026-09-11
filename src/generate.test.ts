@@ -123,6 +123,43 @@ test("generate(): merges an LLM-resolved edge via an injected fake client", asyn
   assert.deepEqual(graph.edges, [{ from: "PRODUCER_TOOL", to: "CONSUMER_TOOL", label: "sha" }]);
 });
 
+/**
+ * MAX_PRODUCERS_PER_FIELD's tie-breaking behavior had never been directly tested -- only
+ * exercised indirectly through the full 893-tool catalog. Worth a focused test: measured
+ * against the real catalog, fields with any candidates have an average of ~15 producers
+ * tied at the best score (one field has 197), and the cap keeps only the first 3 by catalog
+ * order among ties. This reconstructs that scenario at a scale you can actually reason
+ * about by hand.
+ */
+test("generate(): caps tied producers at MAX_PRODUCERS_PER_FIELD, keeping the first 3 by catalog order", async () => {
+  const producerFor = (slug: string) => ({
+    slug,
+    inputParameters: { required: [] },
+    outputParameters: {
+      properties: { data: { $ref: "#/$defs/Issue" } },
+      $defs: { Issue: { type: "object", properties: { number: { type: "integer" } } } },
+    },
+  });
+  const catalog = [
+    producerFor("PRODUCER_A"),
+    producerFor("PRODUCER_B"),
+    producerFor("PRODUCER_C"),
+    producerFor("PRODUCER_D"),
+    producerFor("PRODUCER_E"),
+    {
+      slug: "CONSUMER",
+      inputParameters: { required: ["issue_number"] },
+      outputParameters: { properties: {} },
+    },
+  ];
+  const graph = await generate(catalog);
+  const producers = graph.edges
+    .filter((e) => e.to === "CONSUMER" && e.label === "issue_number")
+    .map((e) => e.from);
+  assert.equal(producers.length, 3, "must cap at 3 even with 5 candidates tied at the same score");
+  assert.deepEqual(producers, ["PRODUCER_A", "PRODUCER_B", "PRODUCER_C"]);
+});
+
 test("CLI: exits non-zero with a clear error when no catalog path is given", () => {
   const generatorPath = resolve("src/generate.ts");
   // No output files are ever written on this path -- loadCatalog throws before

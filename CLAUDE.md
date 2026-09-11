@@ -141,6 +141,22 @@ Current thresholds in `src/generate.ts` (tune here if quality needs adjusting):
   fake_slack_catalog.json` is a 2-tool catalog where a ratio-only filter wrongly treated a
   field required by 1 of 2 tools (50%) as "boilerplate", producing 0 edges — a field needing
   a majority of a handful of tools isn't evidence of anything without a real sample size.
+- `MAX_PRODUCERS_PER_FIELD = 3` — measured, not just assumed, how much work this cap
+  actually does: across the real catalog, fields with at least one candidate have an
+  **average of ~15 producers tied at the best score**, and one field has **197** tied
+  producers. Ties are broken by catalog iteration order (stable sort, so whichever 3 happen
+  to appear first), which is arbitrary but not wrong — I checked whether removing the cap
+  (keeping every producer tied at the best score) would be a real improvement, and it isn't:
+  that's a ~15x edge-count increase on average, up to 197x for the worst field, which is
+  noise amplification, not more signal, since a tie at the ceiling score means every tied
+  candidate is equally well-evidenced already. Concretely: `GITHUB_LIST_REPOSITORY_ISSUES`
+  — the exact tool the original README names as its `issue_number` example — is one of 18
+  tools tied for that field, and isn't one of the 3 the cap keeps (`GITHUB_ADD_ASSIGNEES_
+  TO_AN_ISSUE`, `GITHUB_CLOSE_ISSUE`, `GITHUB_CREATE_AN_ISSUE` are, by catalog order).
+  `issue_number` edges into `GITHUB_CREATE_AN_ISSUE_COMMENT` are still correctly present
+  (the README's own text already hedges this: "there could be other ways to get an
+  issue_number too") — just not from that specific producer. Recording this because it's
+  the kind of thing worth knowing before citing a specific edge as a worked example.
 - Against `github_catalog.json`: 2025 required fields total, 1073 excluded as context, 231
   unresolved by heuristics and handed to the LLM. 893 nodes (provenance 1.0), 2101 edges
   heuristically, plus whatever the LLM resolves on top when credentials are present.
