@@ -92,7 +92,7 @@ export async function generate(tools: Tool[]): Promise<Graph> {
 
   const heuristicEdgeCount = edges.length;
 
-  const llmEdges = await llmDisambiguate(unresolved, outputsByTool);
+  const llmEdges = await llmDisambiguate(unresolved, indexedOutputsByTool);
   for (const e of llmEdges) {
     const key = `${e.from}->${e.to}->${e.label}`;
     if (seen.has(key)) continue;

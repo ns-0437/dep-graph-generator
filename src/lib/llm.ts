@@ -1,6 +1,6 @@
 import OpenAI from "openai";
-import { tokenize } from "./tokenize.js";
-import type { Edge, InputField, OutField } from "../types.js";
+import type { IndexedField } from "./match.js";
+import type { Edge, InputField } from "../types.js";
 
 /** The minimal slice of the OpenAI SDK's surface llmDisambiguate actually calls, so tests
  * can inject a fake client instead of hitting the network. */
@@ -24,15 +24,15 @@ export interface ChatClient {
 export function looseCandidates(
   input: InputField,
   consumerSlug: string,
-  outputsByTool: Map<string, OutField[]>,
+  outputsByTool: Map<string, IndexedField[]>,
   limit: number,
 ) {
   const scored: { slug: string; leaf: string; type: string; overlap: number }[] = [];
   for (const [slug, fields] of outputsByTool) {
     if (slug === consumerSlug) continue;
     for (const f of fields) {
-      const overlap = tokenize(f.name).filter((t) => input.tokens.includes(t)).length;
-      if (overlap > 0) scored.push({ slug, leaf: f.name, type: f.parentType, overlap });
+      const overlap = f.tokens.filter((t) => input.tokens.includes(t)).length;
+      if (overlap > 0) scored.push({ slug, leaf: f.field.name, type: f.field.parentType, overlap });
     }
   }
   scored.sort((a, b) => b.overlap - a.overlap);
@@ -55,7 +55,7 @@ export function looseCandidates(
  */
 export async function llmDisambiguate(
   unresolved: { consumer: string; field: InputField }[],
-  outputsByTool: Map<string, OutField[]>,
+  outputsByTool: Map<string, IndexedField[]>,
   client?: ChatClient,
 ): Promise<Edge[]> {
   if (unresolved.length === 0) return [];
