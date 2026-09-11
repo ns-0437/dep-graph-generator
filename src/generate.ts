@@ -12,11 +12,13 @@ import { loadCatalog, slugOf, requiredInputsOf, guessService } from "./lib/catal
 import {
   buildLeafFrequency,
   buildInputFrequency,
+  indexFields,
   matchScore,
   isContextField,
   SCORE_THRESHOLD,
   MAX_PRODUCERS_PER_FIELD,
 } from "./lib/match.js";
+import type { IndexedField } from "./lib/match.js";
 import { llmDisambiguate } from "./lib/llm.js";
 import { renderVisualizationHtml } from "./lib/visualization.js";
 import type { Tool, GraphNode, Edge, Graph, OutField, InputField } from "./types.js";
@@ -38,7 +40,14 @@ export async function generate(tools: Tool[]): Promise<Graph> {
   for (const [slug, tool] of toolBySlug) {
     outputsByTool.set(slug, flattenOutputs(tool));
   }
-  const leafFrequency = buildLeafFrequency(outputsByTool);
+  // matchScore runs once per (required input) x (candidate field) pair -- millions of times
+  // against a large catalog -- so each field's tokens are computed once here rather than
+  // re-tokenized inside every comparison. See IndexedField in lib/match.ts.
+  const indexedOutputsByTool = new Map<string, IndexedField[]>();
+  for (const [slug, fields] of outputsByTool) {
+    indexedOutputsByTool.set(slug, indexFields(fields));
+  }
+  const leafFrequency = buildLeafFrequency(indexedOutputsByTool);
 
   const requiredByTool = new Map<string, InputField[]>();
   for (const [slug, tool] of toolBySlug) {
@@ -61,7 +70,7 @@ export async function generate(tools: Tool[]): Promise<Graph> {
         continue;
       }
       const candidates: { slug: string; score: number }[] = [];
-      for (const [producerSlug, fields] of outputsByTool) {
+      for (const [producerSlug, fields] of indexedOutputsByTool) {
         if (producerSlug === consumerSlug) continue;
         let best = 0;
         for (const f of fields) best = Math.max(best, matchScore(input, f, leafFrequency));
