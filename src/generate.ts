@@ -6,6 +6,7 @@
  * We write `dependency_graph.json` to the working directory.
  */
 import { writeFileSync } from "fs";
+import { pathToFileURL } from "url";
 import { flattenOutputs } from "./lib/schema.js";
 import { loadCatalog, slugOf, requiredInputsOf, guessService } from "./lib/catalog.js";
 import {
@@ -23,7 +24,7 @@ import type { Tool, GraphNode, Edge, Graph, OutField, InputField } from "./types
 const CATALOG_PATH = process.argv.length > 2 ? process.argv[process.argv.length - 1] : undefined;
 const OUT_PATH = "dependency_graph.json";
 
-async function generate(tools: Tool[]): Promise<Graph> {
+export async function generate(tools: Tool[]): Promise<Graph> {
   const toolBySlug = new Map<string, Tool>();
   const nodes: GraphNode[] = [];
   for (const t of tools) {
@@ -110,7 +111,14 @@ async function main() {
   );
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+// Only run main() when this file is executed directly (node generate.ts / node --import tsx
+// generate.ts <catalog>), not when it's imported as a module -- e.g. from a test importing
+// `generate` for an end-to-end check. Without this guard, importing this file anywhere
+// would try to read argv, load a catalog, and write output files as a side effect.
+const isMainModule = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isMainModule) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
