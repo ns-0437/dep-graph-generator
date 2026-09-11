@@ -12,7 +12,7 @@ See [CLAUDE.md](CLAUDE.md) for how the matching actually works, the design decis
 it, and two real bugs a proper test suite caught (a pluralization bug affecting 41 nodes,
 and a catalog-loading bug that silently swallowed malformed input).
 
-`npm run verify` runs the full check (typecheck + 54 tests + selfcheck) locally in a few
+`npm run verify` runs the full check (typecheck + 57 tests + selfcheck) locally in a few
 seconds; the same three run in CI on every push.
 
 ### Try it on a different toolkit

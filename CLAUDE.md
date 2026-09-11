@@ -174,22 +174,30 @@ Known limitations (heuristic can't catch these):
 - `npm run typecheck` — `tsc` in strict mode (+ `noUncheckedIndexedAccess`). There was no
   `tsconfig.json` at all until this was added; TypeScript had never actually been
   type-checked in this project before that (tsx only transpiles, it doesn't check types).
-- `npm test` — 53 tests via Node's built-in test runner (`node --test`, no extra framework
-  dependency): unit tests for every `lib/*` module plus two end-to-end tests that call the
-  real exported `generate()` against both the synthetic Slack catalog and the actual GitHub
-  catalog. `generate.ts` had to be made safely importable first — `main()` used to run
-  unconditionally at module scope, so importing the file anywhere immediately tried to read
-  argv and write output files as a side effect; it's now guarded behind an entrypoint check.
-- `npm run coverage` — real numbers via `--experimental-test-coverage`: 99.31% line /
-  93.84% branch / 96.97% funcs overall (was 78.16%/94.44%/95.76% before
-  `visualization.test.ts` existed — the jump came from that module having a test file that
-  imports and calls it directly, not from any change to the code itself). Every `lib/*.ts`
-  module is now at or near 100% line coverage. One remaining honest caveat, unchanged from
-  before: `generate.ts`'s edge-emission loop (lines 75-81) still shows as uncovered despite
-  being exercised thousands of times by the integration tests and by the fact the tests
-  assert on the exact edges it produces — this looks like a tsx-transform/sourcemap
-  attribution quirk specific to files only imported (never directly executed) within a test
-  worker, not an actual gap.
+- `npm test` — 57 tests via Node's built-in test runner (`node --test`, no extra framework
+  dependency): unit tests for every `lib/*` module, end-to-end tests calling the real
+  exported `generate()` (against the synthetic Slack catalog, the actual GitHub catalog, and
+  — via an injected fake LLM client — a case that exercises LLM-resolved edges specifically),
+  and CLI subprocess tests that spawn the real entrypoint and check the files it writes.
+  `generate.ts` had to be made safely importable first — `main()` used to run unconditionally
+  at module scope, so importing the file anywhere immediately tried to read argv and write
+  output files as a side effect; it's now guarded behind an entrypoint check.
+- `npm run coverage` — via `c8` (switched from Node's `--experimental-test-coverage`, see
+  below): **100% line / 100% function / 93.58% branch** coverage across every file. Every
+  `lib/*.ts` module and `generate.ts` are fully line-covered.
+  - **Correcting an earlier claim in this file's history**: an earlier version of this
+    section said generate.ts's edge-emission loop showing as uncovered was "a
+    tsx-transform/sourcemap attribution quirk... not an actual gap." That specific claim was
+    wrong on the details, caught by cross-checking Node's coverage flag against `c8` on the
+    same run: they reported *completely different* uncovered lines for the same file. `c8`
+    was right — it pointed at `main()`/the CLI entrypoint, which genuinely had never been
+    exercised by anything (closed by adding CLI subprocess tests and a fake-client test for
+    the LLM-merge path). Node's own `--experimental-test-coverage` really does have a real
+    line-attribution problem in this codebase (confirmed, not assumed) — which is *why*
+    `npm run coverage` now uses `c8` instead. The honest version: don't trust either coverage
+    tool's specific line numbers without cross-checking when something looks surprising;
+    trust that a *stable, mature* tool (c8) is right by default, but verify even that against
+    what the code actually does before writing docs around it.
 - `npm run verify` — chains typecheck + test + selfcheck; the one command to run before
   trusting a change.
 - `.github/workflows/ci.yml` — runs typecheck, tests, and selfcheck on every push/PR. Adds
