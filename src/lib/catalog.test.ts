@@ -77,3 +77,14 @@ test("loadCatalog throws a clear error on invalid JSON", () => {
     unlinkSync(path);
   }
 });
+
+test("loadCatalog throws a clear error when the catalog file doesn't exist at all", () => {
+  // Distinct failure mode from invalid JSON above -- a missing file throws a raw ENOENT
+  // from readFileSync, not a JSON.parse SyntaxError, and both need to land in the same
+  // catch block. Verified the actual error message first (not just assumed the catch
+  // works for both): it correctly reports "failed to read/parse catalog at ...: ENOENT...".
+  assert.throws(
+    () => loadCatalog("this-file-truly-does-not-exist.json"),
+    /failed to read\/parse catalog/,
+  );
+});
