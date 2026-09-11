@@ -23,6 +23,28 @@ export function flattenOutputs(tool: Tool): OutField[] {
     return { node };
   }
 
+  function compositionBranches(resolved: any): any[] {
+    return [...(resolved.allOf ?? []), ...(resolved.oneOf ?? []), ...(resolved.anyOf ?? [])];
+  }
+
+  /**
+   * Does this node (after following $ref/array/allOf/oneOf/anyOf) eventually reach a
+   * schema with named properties worth descending into? Needed because real catalog data
+   * has fields like `{ anyOf: [{ $ref: "#/$defs/RealShape" }, { type: "object",
+   * additionalProperties: true }] }` (a real GitHub example) -- treating that field as an
+   * opaque leaf would silently lose every field inside RealShape, but treating every
+   * anyOf/oneOf field as a container would also wrongly swallow simple nullable-primitive
+   * patterns like `{ anyOf: [{ type: "string" }, { type: "null" }] }`, which should still
+   * be recorded as a leaf under their own property name.
+   */
+  function isEffectivelyContainer(node: any, depth = 0): boolean {
+    if (!node || depth > MAX_DEPTH) return false;
+    const { node: resolved } = resolve(node);
+    if (resolved.properties) return true;
+    if (resolved.type === "array" && resolved.items) return isEffectivelyContainer(resolved.items, depth + 1);
+    return compositionBranches(resolved).some((branch) => isEffectivelyContainer(branch, depth + 1));
+  }
+
   function walk(node: any, path: string, parentType: string, visited: Set<string>, depth: number) {
     if (!node || depth > MAX_DEPTH) return;
     const { node: resolved, typeName } = resolve(node);
@@ -36,19 +58,21 @@ export function flattenOutputs(tool: Tool): OutField[] {
       walk(resolved.items, path, currentType, visited, depth + 1);
       return;
     }
-    const subSchemas: any[] = [resolved, ...(resolved.allOf ?? [])];
-    for (const sub of subSchemas) {
-      const props = sub.properties;
-      if (!props) continue;
-      for (const [key, val] of Object.entries<any>(props)) {
-        const childPath = path ? `${path}.${key}` : key;
-        const { node: childResolved } = resolve(val);
-        const isContainer = !!childResolved.properties || childResolved.type === "array" || !!childResolved.allOf;
-        if (isContainer) {
-          walk(val, childPath, currentType, visited, depth + 1);
-        } else {
-          results.push({ name: key, parentType: currentType, path: childPath });
-        }
+    // allOf/oneOf/anyOf: each branch is an alternative or additional shape for THIS same
+    // node (not a new named field) -- e.g. "give me RealShape if possible, else any
+    // object" -- so each branch is walked at the same path, letting $ref resolution give
+    // it its own precise owning type name if it has one.
+    for (const branch of compositionBranches(resolved)) {
+      walk(branch, path, currentType, visited, depth + 1);
+    }
+    const props = resolved.properties;
+    if (!props) return;
+    for (const [key, val] of Object.entries<any>(props)) {
+      const childPath = path ? `${path}.${key}` : key;
+      if (isEffectivelyContainer(val)) {
+        walk(val, childPath, currentType, visited, depth + 1);
+      } else {
+        results.push({ name: key, parentType: currentType, path: childPath });
       }
     }
   }
