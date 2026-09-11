@@ -1,7 +1,15 @@
 {
   "name": "composio-dep-graph-generator",
+  "version": "1.0.0",
+  "description": "Generates a tool dependency graph from a Composio toolkit catalog -- which tools' outputs can supply which other tools' required inputs.",
   "private": true,
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ns-0437/dep-graph-generator.git"
+  },
+  "keywords": ["dependency-graph", "composio", "tool-catalog", "code-generation"],
   "scripts": {
     "generate": "node --env-file-if-exists=.env --import tsx src/generate.ts",
     "selfcheck": "node --env-file-if-exists=.env --import tsx src/selfcheck.ts",
