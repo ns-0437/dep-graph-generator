@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, existsSync, rmSync } from "fs";
 import { execFileSync } from "child_process";
 import { resolve } from "path";
 import { generate } from "./generate.js";
+import type { ChatClient } from "./lib/llm.js";
 
 /**
  * End-to-end test: unlike lib/*.test.ts, which test each piece in isolation, this runs the
@@ -82,6 +83,44 @@ test("CLI: writes dependency_graph.json and graph.html when run as a subprocess"
     if (originalViz !== null) writeFileSync(vizPath, originalViz, "utf-8");
     else rmSync(vizPath, { force: true });
   }
+});
+
+/**
+ * generate() itself never had a way to inject a fake LLM client, so the loop that merges
+ * llmDisambiguate's results into the final edge list (lib/generate.ts, right after the
+ * heuristic pass) was never actually exercised -- confirmed via coverage before this test
+ * existed. A self-contained inline catalog here, not the shared Slack fixture: "sha" needs
+ * a producer field literally named "commit_sha" that shares the "sha" token (so
+ * looseCandidates surfaces it) but isn't a heuristic subset match (so it's genuinely
+ * unresolved and actually reaches the LLM path), which the shared fixture doesn't have.
+ */
+test("generate(): merges an LLM-resolved edge via an injected fake client", async () => {
+  const catalog = [
+    {
+      slug: "PRODUCER_TOOL",
+      inputParameters: { required: [] },
+      outputParameters: {
+        properties: { data: { $ref: "#/$defs/ProducerResponse" } },
+        $defs: {
+          ProducerResponse: { type: "object", properties: { commit_sha: { type: "string" } } },
+        },
+      },
+    },
+    {
+      slug: "CONSUMER_TOOL",
+      inputParameters: { required: ["sha"] },
+      outputParameters: { properties: {} },
+    },
+  ];
+  const fakeClient: ChatClient = {
+    chat: {
+      completions: {
+        create: async () => ({ choices: [{ message: { content: '[{"idx":0,"ci":0}]' } }] }),
+      },
+    },
+  };
+  const graph = await generate(catalog, fakeClient);
+  assert.deepEqual(graph.edges, [{ from: "PRODUCER_TOOL", to: "CONSUMER_TOOL", label: "sha" }]);
 });
 
 test("CLI: exits non-zero with a clear error when no catalog path is given", () => {

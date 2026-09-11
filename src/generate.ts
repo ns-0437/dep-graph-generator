@@ -20,13 +20,21 @@ import {
 } from "./lib/match.js";
 import type { IndexedField } from "./lib/match.js";
 import { llmDisambiguate } from "./lib/llm.js";
+import type { ChatClient } from "./lib/llm.js";
 import { renderVisualizationHtml } from "./lib/visualization.js";
 import type { Tool, GraphNode, Edge, Graph, OutField, InputField } from "./types.js";
 
 const CATALOG_PATH = process.argv.length > 2 ? process.argv[process.argv.length - 1] : undefined;
 const OUT_PATH = "dependency_graph.json";
 
-export async function generate(tools: Tool[]): Promise<Graph> {
+/**
+ * `client` is only ever passed in tests -- production always lets llmDisambiguate build a
+ * real OpenAI client from env vars. Threaded through here (not just llmDisambiguate itself)
+ * so a test can exercise generate()'s own handling of LLM-contributed edges end to end --
+ * merging them into the heuristic result and deduping against edges the heuristic already
+ * found -- not just llmDisambiguate in isolation.
+ */
+export async function generate(tools: Tool[], client?: ChatClient): Promise<Graph> {
   const toolBySlug = new Map<string, Tool>();
   const nodes: GraphNode[] = [];
   for (const t of tools) {
@@ -92,7 +100,7 @@ export async function generate(tools: Tool[]): Promise<Graph> {
 
   const heuristicEdgeCount = edges.length;
 
-  const llmEdges = await llmDisambiguate(unresolved, indexedOutputsByTool);
+  const llmEdges = await llmDisambiguate(unresolved, indexedOutputsByTool, client);
   for (const e of llmEdges) {
     const key = `${e.from}->${e.to}->${e.label}`;
     if (seen.has(key)) continue;
