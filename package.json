@@ -6,7 +6,8 @@
     "generate": "node --env-file-if-exists=.env --import tsx src/generate.ts",
     "selfcheck": "node --env-file-if-exists=.env --import tsx src/selfcheck.ts",
     "typecheck": "tsc",
-    "test": "node --import tsx --test src/lib/*.test.ts src/*.test.ts"
+    "test": "node --import tsx --test src/lib/*.test.ts src/*.test.ts",
+    "coverage": "node --import tsx --test --experimental-test-coverage src/lib/*.test.ts src/*.test.ts"
   },
   "dependencies": {
     "openai": "^6.48.0"
