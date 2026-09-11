@@ -46,3 +46,16 @@ jobs:
             if (r.edges === 0) { console.error("0 edges"); process.exit(1); }
             console.log("selfcheck gate passed:", r);
           '
+
+      - name: Check graph.html is up to date with the source
+        # graph.html is committed (it's the live GitHub Pages deployment) but generated,
+        # and nothing previously verified it actually matches what generate.ts currently
+        # produces -- change the matching/schema logic, forget to regenerate and commit
+        # graph.html, and the live page silently drifts from the source that generated it.
+        # The self-check step above already regenerated it against HEAD; diff that against
+        # what's actually committed.
+        run: |
+          git diff --exit-code -- graph.html || {
+            echo "::error::graph.html is out of date with the current generator. Run 'npm run generate -- github_catalog.json' and commit the result.";
+            exit 1;
+          }
