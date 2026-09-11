@@ -11,7 +11,7 @@
   },
   "keywords": ["dependency-graph", "composio", "tool-catalog", "code-generation"],
   "engines": {
-    "node": ">=20.12.0"
+    "node": ">=20.20.2"
   },
   "scripts": {
     "generate": "node --env-file-if-exists=.env --import tsx src/generate.ts",

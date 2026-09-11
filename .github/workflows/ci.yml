@@ -11,12 +11,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Testing latest 20.x here, not the exact 20.12.0 floor where --env-file-if-exists
-        # was added: a first attempt pinning 20.12.0 exactly failed, but not on anything
-        # this project's own code does -- c8@12's yargs dependency hit ERR_REQUIRE_ESM on
-        # that specific old patch. Latest 20.x tells us whether that's an old-patch-only
-        # problem or a real 20.x-line incompatibility before deciding what engines should say.
-        node-version: ["20", "22"]
+        # 20.20.2 matches package.json's engines floor -- verified, not guessed. A first
+        # attempt pinning 20.12.0 (when --env-file-if-exists, which this project's own
+        # scripts use, was added) failed, but not on this project's own code: c8@12's yargs
+        # dependency hit ERR_REQUIRE_ESM specifically on that old patch. Latest 20.x passed,
+        # which narrowed it down to "an old-patch-specific c8/yargs/Node ESM interop bug, not
+        # a real 20.x-line incompatibility" -- so the floor got moved up to the exact version
+        # actually confirmed working, not left claiming a number that had just failed.
+        node-version: ["20.20.2", "22"]
     steps:
       - uses: actions/checkout@v4
 
