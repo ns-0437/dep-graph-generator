@@ -80,7 +80,11 @@ export function guessService(slug: string): string | undefined {
   for (const kw of SERVICE_KEYWORDS) {
     const kwTokens = tokenize(kw);
     if (kwTokens.every((k) => rest.includes(k))) {
-      return kwTokens.map((k) => (k.endsWith("s") ? k : k + "s")).join("_");
+      // Pluralize only the last word -- pluralizing every word independently turns
+      // "pull_request" into "pulls_requests" instead of "pull_requests".
+      return kwTokens
+        .map((k, i) => (i === kwTokens.length - 1 && !k.endsWith("s") ? k + "s" : k))
+        .join("_");
     }
   }
   return rest[0];
