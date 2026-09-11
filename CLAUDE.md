@@ -198,6 +198,17 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
 - `flattenOutputs` only merged `allOf`, not `oneOf`/`anyOf` — see the design-decisions
   section above for the measured impact (real fields silently lost for tools whose response
   shape used `anyOf`, which the actual catalog does 174 times).
+- `graph.html` froze/appeared blank for 1+ second on every load with no loading indicator —
+  measured directly (`domContentLoaded` at 1103ms despite the file loading in 41ms), not
+  assumed from reading the code. Fixed with a visible "Laying out the graph..." message and
+  deferred layout computation. Worth noting for anyone touching this file: the first attempt
+  used a double `requestAnimationFrame`, the idiomatic choice — but while testing it, `rAF`
+  callbacks never fired at all in this session's browser automation tool (confirmed via
+  explicit instrumentation), even though `document.visibilityState` reported `"visible"`.
+  Switched to `setTimeout(fn, 0)`, which is spec-guaranteed to defer regardless of embedding
+  context, and verified it actually resolves (not just theoretically should). A CSS bug
+  surfaced in the same pass too: the loading overlay was double-offset from being nested
+  inside an already-offset container.
 - (Checked, not a bug, but verified rather than assumed: `npm audit` reports 0
   vulnerabilities in the current dependency tree.)
 
