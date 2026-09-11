@@ -1,6 +1,19 @@
 import type { Graph } from "../types.js";
 
 /**
+ * JSON.stringify does not escape "</script>" -- if any node id, service, or edge label
+ * ever contained that literal substring, embedding the graph directly into a <script> tag
+ * would let it break out of the tag and inject arbitrary HTML/script. The current
+ * github_catalog.json doesn't trigger this, but the generator explicitly promises to
+ * generalize to any toolkit's catalog, so this has to hold for catalogs we've never seen.
+ * Standard fix: escape "<" as its unicode escape, which is invisible to JSON.parse but
+ * can't form a "</script>" sequence.
+ */
+function escapeForInlineScript(json: string): string {
+  return json.replace(/</g, "\\u003c");
+}
+
+/**
  * Self-contained visualization: the graph data is embedded inline (not fetched), and layout
  * is a hand-rolled force simulation with no external library, so the file opens correctly
  * straight from disk (file://) with no server and no network access required.
@@ -39,7 +52,7 @@ export function renderVisualizationHtml(graph: Graph): string {
 <div id="tooltip"></div>
 <div id="legend">Drag background to pan · wheel to zoom · drag a node to reposition · click a node to inspect its edges.</div>
 <script>
-const GRAPH = ${JSON.stringify(graph)};
+const GRAPH = ${escapeForInlineScript(JSON.stringify(graph))};
 (function () {
   "use strict";
   const canvas = document.getElementById("c");
