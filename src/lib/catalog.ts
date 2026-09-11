@@ -6,8 +6,25 @@ export function loadCatalog(catalogPath: string | undefined): Tool[] {
   if (!catalogPath) {
     throw new Error("pass the toolkit catalog path as the first argument");
   }
-  const data = JSON.parse(readFileSync(catalogPath, "utf-8"));
-  return Array.isArray(data) ? data : (data.tools ?? data.items ?? []);
+  let data: unknown;
+  try {
+    data = JSON.parse(readFileSync(catalogPath, "utf-8"));
+  } catch (err) {
+    throw new Error(`failed to read/parse catalog at "${catalogPath}": ${(err as Error).message}`);
+  }
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === "object") {
+    const obj = data as Record<string, unknown>;
+    if (Array.isArray(obj.tools)) return obj.tools as Tool[];
+    if (Array.isArray(obj.items)) return obj.items as Tool[];
+  }
+  // Previously this silently fell through to `[]`, which produces a graph with 0 nodes
+  // and 0 edges and no indication of why -- indistinguishable from "catalog legitimately
+  // has no tools". Fail loudly instead so a malformed/misshapen catalog is obvious.
+  throw new Error(
+    `catalog at "${catalogPath}" is not a recognized shape -- expected a JSON array of ` +
+      `tools, or an object with a "tools" or "items" array property.`,
+  );
 }
 
 export function slugOf(tool: Tool): string | undefined {
