@@ -9,7 +9,7 @@ import type { Graph } from "../types.js";
  * Standard fix: escape "<" as its unicode escape, which is invisible to JSON.parse but
  * can't form a "</script>" sequence.
  */
-function escapeForInlineScript(json: string): string {
+export function escapeForInlineScript(json: string): string {
   return json.replace(/</g, "\\u003c");
 }
 
