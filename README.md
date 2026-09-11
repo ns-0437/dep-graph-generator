@@ -8,8 +8,12 @@
 GitHub toolkit (893 tools, 2107 edges), rendered live via GitHub Pages. Pan/zoom, search by
 slug substring, and click a node to see what it supplies to and needs from other tools.
 
-See [CLAUDE.md](CLAUDE.md) for how the matching actually works and the design decisions
-behind it.
+See [CLAUDE.md](CLAUDE.md) for how the matching actually works, the design decisions behind
+it, and two real bugs a proper test suite caught (a pluralization bug affecting 41 nodes,
+and a catalog-loading bug that silently swallowed malformed input).
+
+`npm run verify` runs the full check (typecheck + 45 tests + selfcheck) locally; the same
+three run in CI on every push.
 
 ---
 

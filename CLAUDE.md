@@ -52,6 +52,8 @@ Grading is via `npm run selfcheck` style checks:
 - `index.html` — redirects the bare GitHub Pages URL to `graph.html` (the generator writes
   `graph.html`, not `index.html`, so Pages would 404 at the root without this).
 - `.nojekyll` — tells GitHub Pages to serve files as-is, skipping Jekyll processing.
+- `.gitattributes` — forces LF line endings regardless of the checkout platform.
+- `LICENSE` — MIT.
 
 ## Deployment
 
@@ -139,10 +141,21 @@ Known limitations (heuristic can't catch these):
 - `npm run typecheck` — `tsc` in strict mode (+ `noUncheckedIndexedAccess`). There was no
   `tsconfig.json` at all until this was added; TypeScript had never actually been
   type-checked in this project before that (tsx only transpiles, it doesn't check types).
-- `npm test` — 24 unit tests via Node's built-in test runner (`node --test`, no extra
-  framework dependency), covering `tokenize`, `schema`, and `match` — including a
-  regression test for the small-catalog context-field bug and a cycle-guard test for
-  self-referential schemas.
+- `npm test` — 45 tests via Node's built-in test runner (`node --test`, no extra framework
+  dependency): unit tests for every `lib/*` module plus two end-to-end tests that call the
+  real exported `generate()` against both the synthetic Slack catalog and the actual GitHub
+  catalog. `generate.ts` had to be made safely importable first — `main()` used to run
+  unconditionally at module scope, so importing the file anywhere immediately tried to read
+  argv and write output files as a side effect; it's now guarded behind an entrypoint check.
+- `npm run coverage` — real numbers via `--experimental-test-coverage`: 78.16% line /
+  94.44% branch / 95.76% funcs overall. `lib/{tokenize,match,schema,llm,catalog}.ts` are all
+  effectively fully covered. `visualization.ts` shows 6.9% line coverage, which is
+  structurally expected (it mostly returns a template string of client-side JS that only
+  ever runs in a browser, not in Node). `generate.ts`'s edge-emission loop shows as
+  uncovered despite being exercised thousands of times by the integration tests — looks like
+  a tsx-transform/sourcemap attribution quirk in the coverage tool, not an actual gap.
+- `npm run verify` — chains typecheck + test + selfcheck; the one command to run before
+  trusting a change.
 - `.github/workflows/ci.yml` — runs typecheck, tests, and selfcheck on every push/PR. Adds
   its own pass/fail gate on selfcheck's JSON output (provenance_ratio >= 0.8, edges > 0)
   since selfcheck.ts itself always exits 0.
@@ -150,12 +163,24 @@ Known limitations (heuristic can't catch these):
 Before this pass, none of the above existed: zero automated tests, no type-checking
 infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console output by eye.
 
+**Real bugs the tests caught, not hypothetical ones:**
+- `guessService` pluralized every keyword token independently, turning `pull_request` into
+  `pulls_requests` instead of `pull_requests` — present since the very first version, never
+  caught by eyeballing sample output, affected 41 real nodes in the GitHub catalog. Caught by
+  a test asserting the literal expected string.
+- `loadCatalog` silently returned `[]` for a malformed catalog (an object with no
+  `tools`/`items` array) — indistinguishable from a catalog that legitimately has zero
+  tools, so a bad input would fail the has-edges gate with no indication why. Now throws a
+  clear error naming the path and the expected shape.
+
 ## Commands
 
 ```bash
 npm install --legacy-peer-deps   # build step (per generator.json)
 npm run typecheck                # strict TypeScript check
-npm test                         # unit tests
+npm test                         # unit + integration tests
+npm run coverage                 # tests with coverage report
+npm run verify                   # typecheck + test + selfcheck, chained
 npm run selfcheck                # run generator on github_catalog.json + report metrics
 npm run generate -- <catalog>    # run generator directly on an arbitrary catalog path
 ```
