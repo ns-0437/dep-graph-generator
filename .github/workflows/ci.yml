@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Self-check against the GitHub catalog
+        # selfcheck.ts (provided, left unmodified) only prints WARNING text on low
+        # provenance or zero edges -- it always exits 0. That's fine for local iteration
+        # but useless as a CI gate, so we parse its JSON output here and fail the job
+        # ourselves if the thresholds aren't met.
+        run: |
+          npm run selfcheck > selfcheck_output.txt 2>&1
+          cat selfcheck_output.txt
+          node -e '
+            const fs = require("fs");
+            const out = fs.readFileSync("selfcheck_output.txt", "utf-8");
+            const match = out.match(/\{[\s\S]*\}/);
+            if (!match) { console.error("could not find selfcheck JSON output"); process.exit(1); }
+            const r = JSON.parse(match[0]);
+            if (r.provenance_ratio < 0.8) { console.error(`provenance_ratio ${r.provenance_ratio} < 0.8`); process.exit(1); }
+            if (r.edges === 0) { console.error("0 edges"); process.exit(1); }
+            console.log("selfcheck gate passed:", r);
+          '
