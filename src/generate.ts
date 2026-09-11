@@ -5,81 +5,15 @@
  *   `node --import tsx src/generate.ts path/to/catalog.json`
  * We write `dependency_graph.json` to the working directory.
  */
-import { readFileSync, writeFileSync } from "fs";
+import { writeFileSync } from "fs";
 import OpenAI from "openai";
-import { singularize, tokenize } from "./lib/tokenize.js";
+import { tokenize } from "./lib/tokenize.js";
 import { flattenOutputs } from "./lib/schema.js";
+import { loadCatalog, slugOf, requiredInputsOf, guessService } from "./lib/catalog.js";
 import type { Tool, GraphNode, Edge, Graph, OutField, InputField } from "./types.js";
 
 const CATALOG_PATH = process.argv.length > 2 ? process.argv[process.argv.length - 1] : undefined;
 const OUT_PATH = "dependency_graph.json";
-
-function loadCatalog(): Tool[] {
-  if (!CATALOG_PATH) {
-    throw new Error("pass the toolkit catalog path as the first argument");
-  }
-  const data = JSON.parse(readFileSync(CATALOG_PATH, "utf-8"));
-  return Array.isArray(data) ? data : (data.tools ?? data.items ?? []);
-}
-
-function slugOf(tool: Tool): string | undefined {
-  return tool.slug ?? tool.name ?? tool.function?.name;
-}
-
-function requiredInputsOf(tool: Tool): InputField[] {
-  const schema = tool.inputParameters;
-  const required: string[] = schema?.required ?? [];
-  return required.map((name) => ({ name, tokens: tokenize(name) }));
-}
-
-const SERVICE_KEYWORDS = [
-  "pull_request",
-  "issue",
-  "repository",
-  "comment",
-  "label",
-  "milestone",
-  "branch",
-  "commit",
-  "release",
-  "workflow",
-  "gist",
-  "organization",
-  "team",
-  "user",
-  "webhook",
-  "review",
-  "tag",
-  "content",
-  "file",
-  "discussion",
-  "project",
-  "check",
-  "action",
-  "collaborator",
-  "fork",
-  "star",
-  "notification",
-  "deployment",
-  "artifact",
-  "secret",
-  "environment",
-  "migration",
-  "invitation",
-  "membership",
-];
-
-/** Best-effort category derived from the slug itself, e.g. GITHUB_CREATE_AN_ISSUE -> "issues". */
-function guessService(slug: string): string | undefined {
-  const rest = tokenize(slug).slice(1);
-  for (const kw of SERVICE_KEYWORDS) {
-    const kwTokens = tokenize(kw);
-    if (kwTokens.every((k) => rest.includes(k))) {
-      return kwTokens.map((k) => (k.endsWith("s") ? k : k + "s")).join("_");
-    }
-  }
-  return rest[0];
-}
 
 async function generate(tools: Tool[]): Promise<Graph> {
   const toolBySlug = new Map<string, Tool>();
@@ -591,7 +525,7 @@ const GRAPH = ${JSON.stringify(graph)};
 }
 
 async function main() {
-  const graph = await generate(loadCatalog());
+  const graph = await generate(loadCatalog(CATALOG_PATH));
   writeFileSync(OUT_PATH, JSON.stringify(graph, null, 2), "utf-8");
   writeFileSync(VIZ_PATH, renderVisualizationHtml(graph), "utf-8");
   console.error(
