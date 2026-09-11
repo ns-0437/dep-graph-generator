@@ -2,6 +2,20 @@ import OpenAI from "openai";
 import { tokenize } from "./tokenize.js";
 import type { Edge, InputField, OutField } from "../types.js";
 
+/** The minimal slice of the OpenAI SDK's surface llmDisambiguate actually calls, so tests
+ * can inject a fake client instead of hitting the network. */
+export interface ChatClient {
+  chat: {
+    completions: {
+      create(params: {
+        model: string;
+        messages: { role: "user"; content: string }[];
+        temperature: number;
+      }): Promise<{ choices: { message: { content: string | null } }[] }>;
+    };
+  };
+}
+
 /**
  * Loosely-matching candidates for a required field the heuristic couldn't resolve: any
  * output leaf sharing at least one token with the input name, ranked by overlap. Used to
@@ -42,12 +56,14 @@ export function looseCandidates(
 export async function llmDisambiguate(
   unresolved: { consumer: string; field: InputField }[],
   outputsByTool: Map<string, OutField[]>,
+  client?: ChatClient,
 ): Promise<Edge[]> {
+  if (unresolved.length === 0) return [];
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || unresolved.length === 0) return [];
+  if (!client && !apiKey) return [];
   const baseURL = process.env.OPENAI_BASE_URL;
   const model = process.env.OPENAI_MODEL ?? "openai/gpt-4o";
-  const client = new OpenAI({ apiKey, baseURL });
+  client ??= new OpenAI({ apiKey, baseURL });
 
   const items = unresolved
     .map((u) => ({ ...u, candidates: looseCandidates(u.field, u.consumer, outputsByTool, 5) }))
