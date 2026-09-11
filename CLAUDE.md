@@ -232,3 +232,11 @@ npm run generate -- <catalog>    # run generator directly on an arbitrary catalo
   with — verify against `test-fixtures/fake_slack_catalog.json` too.
 - Run `npm run typecheck && npm test && npm run selfcheck` after changes to `src/` to catch
   regressions before they reach CI.
+- **One-time setup**: run `git config core.hooksPath .githooks` to enable the pre-commit
+  hook, which type-checks the staged snapshot (not the working tree) before allowing a
+  commit. This exists because of a real incident: a refactor's `git add` listed two of three
+  changed files, which typechecked fine locally (the third file's changes were sitting
+  right there on disk) but broke CI once pushed, since the committed snapshot was
+  incomplete. The hook uses `git stash --keep-index` specifically so it checks what would
+  actually be committed, not whatever else happens to be in the working tree — verified
+  directly by reconstructing that exact scenario and confirming the hook fails it.

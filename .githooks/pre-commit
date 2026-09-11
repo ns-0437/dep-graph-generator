@@ -1,0 +1,27 @@
+#!/bin/sh
+# Type-checks exactly what's staged for this commit -- not the working tree.
+#
+# Added after a real incident: a commit's `git add` listed two of the three files a
+# refactor had touched. Locally, `npm run typecheck` against the working tree still passed
+# (the third file's uncommitted changes were sitting right there on disk), so nothing looked
+# wrong -- but the committed snapshot was incomplete, and CI correctly failed once pushed.
+# Naively running `npm run typecheck` here would NOT have caught that same mistake, for the
+# same reason it didn't the first time: it checks the working tree, not the staged snapshot.
+# `git stash --keep-index` temporarily removes unstaged changes so the check runs against
+# exactly what would actually be committed.
+set -e
+
+STASHED=0
+if ! git diff --quiet; then
+  git stash push --keep-index --quiet --message "pre-commit: unstaged changes"
+  STASHED=1
+fi
+cleanup() {
+  if [ "$STASHED" = "1" ]; then
+    git stash pop --quiet
+  fi
+}
+trap cleanup EXIT
+
+echo "pre-commit: type-checking the staged snapshot..."
+npm run typecheck
