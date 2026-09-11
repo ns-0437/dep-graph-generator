@@ -91,3 +91,83 @@ test("flattenOutputs returns nothing when outputParameters has no data property"
   assert.deepEqual(flattenOutputs(tool({ properties: {} })), []);
   assert.deepEqual(flattenOutputs({ outputParameters: undefined }), []);
 });
+
+test("flattenOutputs recovers fields hidden behind a real-world anyOf shape (regression test)", () => {
+  // Modeled directly on GITHUB_ADD_ORG_RUNNER_LABELS's actual schema: the wrapper's
+  // 'data' property is typed as anyOf [the real shape, or any generic object] rather than
+  // a plain $ref. Before this was handled, the whole 'data' field was treated as an opaque
+  // leaf and every field inside the real shape (RunnerLabel.id/name/type, total_count) was
+  // silently lost.
+  const fields = flattenOutputs(
+    tool({
+      properties: {
+        data: { $ref: "#/$defs/Wrapper" },
+      },
+      $defs: {
+        Wrapper: {
+          type: "object",
+          properties: {
+            data: {
+              anyOf: [{ $ref: "#/$defs/RealShape" }, { type: "object", additionalProperties: true }],
+            },
+          },
+        },
+        RealShape: {
+          type: "object",
+          properties: {
+            labels: { type: "array", items: { $ref: "#/$defs/RunnerLabel" } },
+            total_count: { type: "integer" },
+          },
+        },
+        RunnerLabel: {
+          type: "object",
+          properties: { id: { type: "integer" }, name: { type: "string" } },
+        },
+      },
+    }),
+  );
+  const byName = Object.fromEntries(fields.map((f) => [f.name, f.parentType]));
+  assert.equal(byName["id"], "RunnerLabel");
+  assert.equal(byName["name"], "RunnerLabel");
+  assert.equal(byName["total_count"], "RealShape");
+});
+
+test("flattenOutputs treats a nullable-primitive anyOf (string | null) as a leaf, not a container", () => {
+  const fields = flattenOutputs(
+    tool({
+      properties: {
+        data: { $ref: "#/$defs/FieldOption" },
+      },
+      $defs: {
+        FieldOption: {
+          type: "object",
+          properties: {
+            description: { anyOf: [{ type: "string" }, { type: "null" }] },
+          },
+        },
+      },
+    }),
+  );
+  // Must still be recorded as a leaf named "description" -- not silently dropped, and not
+  // wrongly recursed into (there's nothing inside a bare {type: "string"} to find).
+  assert.deepEqual(fields, [{ name: "description", parentType: "FieldOption", path: "data.description" }]);
+});
+
+test("flattenOutputs handles oneOf the same way as anyOf", () => {
+  const fields = flattenOutputs(
+    tool({
+      properties: {
+        data: { $ref: "#/$defs/Wrapper" },
+      },
+      $defs: {
+        Wrapper: {
+          oneOf: [{ properties: { a: { type: "string" } } }, { properties: { b: { type: "string" } } }],
+        },
+      },
+    }),
+  );
+  assert.deepEqual(
+    fields.map((f) => f.name).sort(),
+    ["a", "b"],
+  );
+});
