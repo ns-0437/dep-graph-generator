@@ -10,6 +10,14 @@ import OpenAI from "openai";
 import { tokenize } from "./lib/tokenize.js";
 import { flattenOutputs } from "./lib/schema.js";
 import { loadCatalog, slugOf, requiredInputsOf, guessService } from "./lib/catalog.js";
+import {
+  buildLeafFrequency,
+  buildInputFrequency,
+  matchScore,
+  isContextField,
+  SCORE_THRESHOLD,
+  MAX_PRODUCERS_PER_FIELD,
+} from "./lib/match.js";
 import type { Tool, GraphNode, Edge, Graph, OutField, InputField } from "./types.js";
 
 const CATALOG_PATH = process.argv.length > 2 ? process.argv[process.argv.length - 1] : undefined;
@@ -26,74 +34,28 @@ async function generate(tools: Tool[]): Promise<Graph> {
   }
 
   const outputsByTool = new Map<string, OutField[]>();
-  const leafFrequency = new Map<string, Set<string>>();
   for (const [slug, tool] of toolBySlug) {
-    const fields = flattenOutputs(tool);
-    outputsByTool.set(slug, fields);
-    for (const f of fields) {
-      const key = tokenize(f.name).join("_");
-      if (!leafFrequency.has(key)) leafFrequency.set(key, new Set());
-      leafFrequency.get(key)!.add(slug);
-    }
+    outputsByTool.set(slug, flattenOutputs(tool));
   }
-  // A leaf name produced by many tools (id, name, url, ...) is too weak a signal on its
-  // own; only accept it without type-name corroboration when it's actually rare.
-  const GENERIC_THRESHOLD = 25;
-  function isGeneric(leafName: string): boolean {
-    const key = tokenize(leafName).join("_");
-    return (leafFrequency.get(key)?.size ?? 0) > GENERIC_THRESHOLD;
-  }
+  const leafFrequency = buildLeafFrequency(outputsByTool);
 
-  /**
-   * Score a required input field against one candidate output leaf field. The core idea:
-   * `issue_number` tokenizes to {issue, number}. If the leaf field's tokens ({number}) are
-   * a subset of the input's tokens, and the *leftover* tokens ({issue}) match the leaf's
-   * owning type name (Issue), that's strong evidence of a real dependency — without ever
-   * hardcoding "issue_number" or "Issue" anywhere.
-   */
-  function matchScore(input: InputField, field: OutField): number {
-    const leafTokens = tokenize(field.name);
-    if (!leafTokens.every((t) => input.tokens.includes(t))) return 0;
-    const remaining = input.tokens.filter((t) => !leafTokens.includes(t));
-    if (remaining.length === 0) return isGeneric(field.name) ? 1 : 4;
-    const typeTokens = tokenize(field.parentType);
-    return remaining.every((t) => typeTokens.includes(t)) ? 5 : 0;
+  const requiredByTool = new Map<string, InputField[]>();
+  for (const [slug, tool] of toolBySlug) {
+    requiredByTool.set(slug, requiredInputsOf(tool));
   }
-
-  // Fields required by a large fraction of all tools (owner, repo, org, ...) are boilerplate
-  // context the caller always supplies directly, never something looked up from another
-  // tool's output — even a rare accidental leaf-name match for these is noise, not a real
-  // dependency, so we exclude them from matching entirely rather than by threshold tuning.
-  const inputFrequency = new Map<string, number>();
-  for (const tool of toolBySlug.values()) {
-    for (const input of requiredInputsOf(tool)) {
-      inputFrequency.set(input.name, (inputFrequency.get(input.name) ?? 0) + 1);
-    }
-  }
-  // Both an absolute floor and a ratio: small catalogs can have a field required by most
-  // (or all) of their handful of tools without it being boilerplate context -- e.g. 1/2
-  // tools needing `channel_id` in a 2-tool catalog is not evidence of anything. The pattern
-  // only becomes meaningful once there's a reasonable sample size behind it.
-  const CONTEXT_FIELD_RATIO = 0.15;
-  const CONTEXT_FIELD_MIN_COUNT = 20;
+  const inputFrequency = buildInputFrequency([...requiredByTool.values()]);
   const totalTools = toolBySlug.size;
-  function isContextField(name: string): boolean {
-    const count = inputFrequency.get(name) ?? 0;
-    return count >= CONTEXT_FIELD_MIN_COUNT && count / totalTools > CONTEXT_FIELD_RATIO;
-  }
 
-  const SCORE_THRESHOLD = 4;
-  const MAX_PRODUCERS_PER_FIELD = 3;
   const edges: Edge[] = [];
   const seen = new Set<string>();
   const unresolved: { consumer: string; field: InputField }[] = [];
   let contextFieldsSkipped = 0;
   let requiredFieldsTotal = 0;
 
-  for (const [consumerSlug, tool] of toolBySlug) {
-    for (const input of requiredInputsOf(tool)) {
+  for (const [consumerSlug, requiredInputs] of requiredByTool) {
+    for (const input of requiredInputs) {
       requiredFieldsTotal++;
-      if (isContextField(input.name)) {
+      if (isContextField(input.name, inputFrequency, totalTools)) {
         contextFieldsSkipped++;
         continue;
       }
@@ -101,7 +63,7 @@ async function generate(tools: Tool[]): Promise<Graph> {
       for (const [producerSlug, fields] of outputsByTool) {
         if (producerSlug === consumerSlug) continue;
         let best = 0;
-        for (const f of fields) best = Math.max(best, matchScore(input, f));
+        for (const f of fields) best = Math.max(best, matchScore(input, f, leafFrequency));
         if (best >= SCORE_THRESHOLD) candidates.push({ slug: producerSlug, score: best });
       }
       if (candidates.length === 0) {
