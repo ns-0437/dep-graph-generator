@@ -2,7 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { tokenize } from "./tokenize.js";
 import { looseCandidates, llmDisambiguate } from "./llm.js";
+import { indexFields } from "./match.js";
 import type { ChatClient } from "./llm.js";
+import type { IndexedField } from "./match.js";
 import type { InputField, OutField } from "../types.js";
 
 function input(name: string): InputField {
@@ -11,9 +13,13 @@ function input(name: string): InputField {
 function outField(name: string, parentType: string): OutField {
   return { name, parentType, path: name };
 }
+/** Build an outputsByTool map the way generate.ts does, via indexFields(). */
+function indexedOutputsByTool(entries: [string, OutField[]][]): Map<string, IndexedField[]> {
+  return new Map(entries.map(([slug, fields]) => [slug, indexFields(fields)]));
+}
 
 test("looseCandidates ranks by token overlap and dedupes by (slug, leaf)", () => {
-  const outputsByTool = new Map<string, OutField[]>([
+  const outputsByTool = indexedOutputsByTool([
     ["PRODUCER_A", [outField("channel_id", "Channel"), outField("channel_id", "Channel")]],
     ["PRODUCER_B", [outField("id", "Channel")]],
     ["PRODUCER_C", [outField("unrelated_thing", "Other")]],
@@ -27,7 +33,7 @@ test("looseCandidates ranks by token overlap and dedupes by (slug, leaf)", () =>
 });
 
 test("looseCandidates excludes the consumer itself and respects the limit", () => {
-  const outputsByTool = new Map<string, OutField[]>([
+  const outputsByTool = indexedOutputsByTool([
     ["CONSUMER", [outField("id", "X")]],
     ["A", [outField("id", "X")]],
     ["B", [outField("id", "X")]],
@@ -52,7 +58,7 @@ test("llmDisambiguate returns [] without a client and without OPENAI_API_KEY set
   const saved = process.env.OPENAI_API_KEY;
   delete process.env.OPENAI_API_KEY;
   try {
-    const outputsByTool = new Map<string, OutField[]>([["PRODUCER", [outField("id", "Channel")]]]);
+    const outputsByTool = indexedOutputsByTool([["PRODUCER", [outField("id", "Channel")]]]);
     const result = await llmDisambiguate(
       [{ consumer: "CONSUMER", field: input("channel_id") }],
       outputsByTool,
@@ -64,7 +70,7 @@ test("llmDisambiguate returns [] without a client and without OPENAI_API_KEY set
 });
 
 test("llmDisambiguate parses a valid response into the chosen edge", async () => {
-  const outputsByTool = new Map<string, OutField[]>([["PRODUCER", [outField("id", "Channel")]]]);
+  const outputsByTool = indexedOutputsByTool([["PRODUCER", [outField("id", "Channel")]]]);
   const fakeClient: ChatClient = {
     chat: {
       completions: {
@@ -83,7 +89,7 @@ test("llmDisambiguate parses a valid response into the chosen edge", async () =>
 });
 
 test("llmDisambiguate treats ci: null as 'no match' rather than an edge", async () => {
-  const outputsByTool = new Map<string, OutField[]>([["PRODUCER", [outField("id", "Channel")]]]);
+  const outputsByTool = indexedOutputsByTool([["PRODUCER", [outField("id", "Channel")]]]);
   const fakeClient: ChatClient = {
     chat: {
       completions: {
@@ -100,7 +106,7 @@ test("llmDisambiguate treats ci: null as 'no match' rather than an edge", async 
 });
 
 test("llmDisambiguate degrades gracefully on a malformed/unparseable response instead of throwing", async () => {
-  const outputsByTool = new Map<string, OutField[]>([["PRODUCER", [outField("id", "Channel")]]]);
+  const outputsByTool = indexedOutputsByTool([["PRODUCER", [outField("id", "Channel")]]]);
   const fakeClient: ChatClient = {
     chat: {
       completions: {
@@ -118,7 +124,7 @@ test("llmDisambiguate degrades gracefully on a malformed/unparseable response in
 
 test("llmDisambiguate skips fields with zero loose candidates without calling the client", async () => {
   let called = false;
-  const outputsByTool = new Map<string, OutField[]>([["PRODUCER", [outField("totally_unrelated", "X")]]]);
+  const outputsByTool = indexedOutputsByTool([["PRODUCER", [outField("totally_unrelated", "X")]]]);
   const fakeClient: ChatClient = {
     chat: { completions: { create: async () => { called = true; return { choices: [] }; } } },
   };
@@ -132,7 +138,7 @@ test("llmDisambiguate skips fields with zero loose candidates without calling th
 });
 
 test("llmDisambiguate batches in groups of 25", async () => {
-  const outputsByTool = new Map<string, OutField[]>([["PRODUCER", [outField("id", "Thing")]]]);
+  const outputsByTool = indexedOutputsByTool([["PRODUCER", [outField("id", "Thing")]]]);
   const unresolved = Array.from({ length: 30 }, (_, i) => ({
     consumer: `CONSUMER_${i}`,
     field: input("thing_id"),
