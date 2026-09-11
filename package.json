@@ -10,6 +10,9 @@
     "url": "https://github.com/ns-0437/dep-graph-generator.git"
   },
   "keywords": ["dependency-graph", "composio", "tool-catalog", "code-generation"],
+  "engines": {
+    "node": ">=20.12.0"
+  },
   "scripts": {
     "generate": "node --env-file-if-exists=.env --import tsx src/generate.ts",
     "selfcheck": "node --env-file-if-exists=.env --import tsx src/selfcheck.ts",

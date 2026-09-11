@@ -8,12 +8,19 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # package.json's engines field claims >=20.12.0 (when --env-file-if-exists, used by
+        # npm run generate/selfcheck, was added) -- verified against the actual oldest and a
+        # current LTS here instead of just asserting it and hoping.
+        node-version: ["20.12.0", "22"]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: ${{ matrix.node-version }}
           cache: "npm"
 
       - name: Install dependencies
