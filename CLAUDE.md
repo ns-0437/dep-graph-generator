@@ -121,9 +121,22 @@ Current thresholds in `src/generate.ts` (tune here if quality needs adjusting):
   fake_slack_catalog.json` is a 2-tool catalog where a ratio-only filter wrongly treated a
   field required by 1 of 2 tools (50%) as "boilerplate", producing 0 edges — a field needing
   a majority of a handful of tools isn't evidence of anything without a real sample size.
-- Against `github_catalog.json`: 2025 required fields total, 1073 excluded as context, 227
-  unresolved by heuristics and handed to the LLM. 893 nodes (provenance 1.0), ~2100 edges
+- Against `github_catalog.json`: 2025 required fields total, 1073 excluded as context, 231
+  unresolved by heuristics and handed to the LLM. 893 nodes (provenance 1.0), 2101 edges
   heuristically, plus whatever the LLM resolves on top when credentials are present.
+
+`flattenOutputs` (in `lib/schema.ts`) handles `$ref`/`$defs`, arrays, and — since a later
+pass — `allOf`/`oneOf`/`anyOf` composition, walking each branch as an alternative shape for
+the same node rather than a new field. This mattered in practice: `anyOf` appears 174 times
+in the real catalog (`allOf` appears 0 times), including cases where a tool's entire `data`
+payload is typed as `anyOf: [RealShape, { type: object, additionalProperties: true }]` —
+before this was handled, the whole field was treated as one opaque leaf and everything
+inside `RealShape` was silently lost. Fixing it recovered real fields (e.g.
+`GITHUB_ADD_ORG_RUNNER_LABELS` went from 0 to 4 correctly-typed leaf fields) without
+regressing either README example pattern. Nullable-primitive unions (`anyOf: [string,
+null]`) are still correctly treated as a leaf under their own property name rather than
+wrongly recursed into — see the "recovers... real-world anyOf" and "nullable-primitive"
+tests in `schema.test.ts` for both cases side by side.
 
 Known limitations (heuristic can't catch these):
 - Input names that don't literally contain the producer field's name at all — e.g. an input
@@ -141,19 +154,22 @@ Known limitations (heuristic can't catch these):
 - `npm run typecheck` — `tsc` in strict mode (+ `noUncheckedIndexedAccess`). There was no
   `tsconfig.json` at all until this was added; TypeScript had never actually been
   type-checked in this project before that (tsx only transpiles, it doesn't check types).
-- `npm test` — 45 tests via Node's built-in test runner (`node --test`, no extra framework
+- `npm test` — 53 tests via Node's built-in test runner (`node --test`, no extra framework
   dependency): unit tests for every `lib/*` module plus two end-to-end tests that call the
   real exported `generate()` against both the synthetic Slack catalog and the actual GitHub
   catalog. `generate.ts` had to be made safely importable first — `main()` used to run
   unconditionally at module scope, so importing the file anywhere immediately tried to read
   argv and write output files as a side effect; it's now guarded behind an entrypoint check.
-- `npm run coverage` — real numbers via `--experimental-test-coverage`: 78.16% line /
-  94.44% branch / 95.76% funcs overall. `lib/{tokenize,match,schema,llm,catalog}.ts` are all
-  effectively fully covered. `visualization.ts` shows 6.9% line coverage, which is
-  structurally expected (it mostly returns a template string of client-side JS that only
-  ever runs in a browser, not in Node). `generate.ts`'s edge-emission loop shows as
-  uncovered despite being exercised thousands of times by the integration tests — looks like
-  a tsx-transform/sourcemap attribution quirk in the coverage tool, not an actual gap.
+- `npm run coverage` — real numbers via `--experimental-test-coverage`: 99.31% line /
+  93.84% branch / 96.97% funcs overall (was 78.16%/94.44%/95.76% before
+  `visualization.test.ts` existed — the jump came from that module having a test file that
+  imports and calls it directly, not from any change to the code itself). Every `lib/*.ts`
+  module is now at or near 100% line coverage. One remaining honest caveat, unchanged from
+  before: `generate.ts`'s edge-emission loop (lines 75-81) still shows as uncovered despite
+  being exercised thousands of times by the integration tests and by the fact the tests
+  assert on the exact edges it produces — this looks like a tsx-transform/sourcemap
+  attribution quirk specific to files only imported (never directly executed) within a test
+  worker, not an actual gap.
 - `npm run verify` — chains typecheck + test + selfcheck; the one command to run before
   trusting a change.
 - `.github/workflows/ci.yml` — runs typecheck, tests, and selfcheck on every push/PR. Adds
@@ -172,6 +188,18 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   `tools`/`items` array) — indistinguishable from a catalog that legitimately has zero
   tools, so a bad input would fail the has-edges gate with no indication why. Now throws a
   clear error naming the path and the expected shape.
+- `renderVisualizationHtml` embedded `JSON.stringify(graph)` directly into a `<script>` tag.
+  `JSON.stringify` does not escape `</script>` — a node id, service, or edge label
+  containing that substring (case-insensitively, per how the HTML parser's script-data
+  state actually matches close tags) would break out of the tag and inject arbitrary
+  HTML/script. The current catalog doesn't trigger this (checked directly), but the
+  generator explicitly promises to generalize to any toolkit's catalog. Fixed by escaping
+  every `<` in the embedded JSON before writing it.
+- `flattenOutputs` only merged `allOf`, not `oneOf`/`anyOf` — see the design-decisions
+  section above for the measured impact (real fields silently lost for tools whose response
+  shape used `anyOf`, which the actual catalog does 174 times).
+- (Checked, not a bug, but verified rather than assumed: `npm audit` reports 0
+  vulnerabilities in the current dependency tree.)
 
 ## Commands
 
