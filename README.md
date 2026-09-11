@@ -15,6 +15,35 @@ and a catalog-loading bug that silently swallowed malformed input).
 `npm run verify` runs the full check (typecheck + 54 tests + selfcheck) locally in a few
 seconds; the same three run in CI on every push.
 
+### Try it on a different toolkit
+
+The generator reads whatever catalog you point it at — it's not hardcoded to GitHub. There's
+a minimal 2-tool synthetic Slack catalog in the repo for exactly this:
+
+```bash
+npm run generate -- test-fixtures/fake_slack_catalog.json
+cat dependency_graph.json
+```
+
+```json
+{
+  "nodes": [
+    { "id": "SLACK_LIST_CHANNELS", "service": "list" },
+    { "id": "SLACK_SEND_MESSAGE", "service": "send" }
+  ],
+  "edges": [{ "from": "SLACK_LIST_CHANNELS", "to": "SLACK_SEND_MESSAGE", "label": "channel_id" }]
+}
+```
+
+`SLACK_SEND_MESSAGE` needs `channel_id`; `SLACK_LIST_CHANNELS` produces a `Channel` object
+with an `id` field — the same token + owning-type-name pattern that finds `issue_number` on
+the GitHub catalog finds this too, with zero Slack- or GitHub-specific code anywhere in the
+matcher. To try your own catalog: same shape as `github_catalog.json` (an array of
+`{ slug, inputParameters, outputParameters }`, or `{ tools: [...] }`), point
+`npm run generate -- <path>` at it. Regenerating overwrites `dependency_graph.json` and
+`graph.html` in the current directory — run it from a scratch directory if you don't want
+that to touch this repo's committed files.
+
 ---
 
 *Everything below this line is the original take-home assessment brief, kept verbatim for
