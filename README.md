@@ -1,5 +1,7 @@
 # build a tool dependency graph generator (60-120 mins)
 
+[![CI](https://github.com/ns-0437/dep-graph-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/ns-0437/dep-graph-generator/actions/workflows/ci.yml)
+
 ## Live visualization
 
 **https://ns-0437.github.io/dep-graph-generator/** — the generated dependency graph for the

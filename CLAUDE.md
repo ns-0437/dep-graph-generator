@@ -28,11 +28,24 @@ Grading is via `npm run selfcheck` style checks:
 - `test-fixtures/fake_slack_catalog.json` — a minimal synthetic non-GitHub catalog used to
   verify the generator actually generalizes, not just works on the one catalog it was tuned
   against.
-- `src/generate.ts` — **the actual deliverable**. Entry point; reads catalog path from
-  `process.argv` (last arg), writes `dependency_graph.json` to cwd.
+- `src/generate.ts` — **the actual deliverable**, now just orchestration (116 lines): load
+  the catalog, build indices, run the matching loop, call the LLM pass, write outputs. The
+  actual logic lives in `src/lib/`:
+  - `lib/tokenize.ts` — name normalization (tested: `tokenize.test.ts`).
+  - `lib/schema.ts` — `$ref`/`$defs` output-schema flattening (tested: `schema.test.ts`).
+  - `lib/catalog.ts` — catalog loading, slug/input extraction, service guessing.
+  - `lib/match.ts` — the actual matching heuristic: `matchScore`, `isGeneric`,
+    `isContextField`, as pure functions (tested: `match.test.ts` — the most important tests
+    in the repo, since this is the logic the whole project exists to get right).
+  - `lib/llm.ts` — batched LLM disambiguation for fields the heuristic can't resolve.
+  - `lib/visualization.ts` — renders `graph.html`.
+- `src/types.ts` — shared types (`GraphNode`, `Edge`, `Graph`, `OutField`, `InputField`).
 - `src/selfcheck.ts` — provided, unmodified. Runs the generator against
   `github_catalog.json` and prints `{ nodes, edges, provenance_ratio, labeled_edges }`.
-  Run via `npm run selfcheck`.
+  Run via `npm run selfcheck`. **Note:** it only prints `WARNING` text on failure and always
+  exits 0 — it was never meant to gate anything, just report numbers for local iteration.
+  CI (see below) adds its own real pass/fail gate on top of selfcheck's JSON output instead
+  of modifying this file.
 - `graph.html` — visualization (nodes/edges you can see), embeds the graph data inline,
   rendered client-side with a hand-rolled canvas force layout. No build/server needed.
 - `dependency_graph.json` — generator output. Gitignored (regenerated on demand).
@@ -121,10 +134,28 @@ Known limitations (heuristic can't catch these):
   with type-name-independent score 4 — the frequency-based genericity check only catches
   fields common enough to have >25 occurrences across the catalog.
 
+## Testing & CI
+
+- `npm run typecheck` — `tsc` in strict mode (+ `noUncheckedIndexedAccess`). There was no
+  `tsconfig.json` at all until this was added; TypeScript had never actually been
+  type-checked in this project before that (tsx only transpiles, it doesn't check types).
+- `npm test` — 24 unit tests via Node's built-in test runner (`node --test`, no extra
+  framework dependency), covering `tokenize`, `schema`, and `match` — including a
+  regression test for the small-catalog context-field bug and a cycle-guard test for
+  self-referential schemas.
+- `.github/workflows/ci.yml` — runs typecheck, tests, and selfcheck on every push/PR. Adds
+  its own pass/fail gate on selfcheck's JSON output (provenance_ratio >= 0.8, edges > 0)
+  since selfcheck.ts itself always exits 0.
+
+Before this pass, none of the above existed: zero automated tests, no type-checking
+infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console output by eye.
+
 ## Commands
 
 ```bash
 npm install --legacy-peer-deps   # build step (per generator.json)
+npm run typecheck                # strict TypeScript check
+npm test                         # unit tests
 npm run selfcheck                # run generator on github_catalog.json + report metrics
 npm run generate -- <catalog>    # run generator directly on an arbitrary catalog path
 ```
@@ -132,8 +163,8 @@ npm run generate -- <catalog>    # run generator directly on an arbitrary catalo
 ## Working rules
 
 - Commit frequently, one logical change per commit.
-- Keep `src/generate.ts` catalog-agnostic: no GitHub-specific hardcoding of slugs or fields,
-  even though `github_catalog.json` is the primary catalog on hand to test with — verify
-  against `test-fixtures/fake_slack_catalog.json` too.
-- Re-run `npm run selfcheck` after each change to `generate.ts` to catch regressions in
-  provenance_ratio / edge count early.
+- Keep `src/generate.ts` and `src/lib/*` catalog-agnostic: no GitHub-specific hardcoding of
+  slugs or fields, even though `github_catalog.json` is the primary catalog on hand to test
+  with — verify against `test-fixtures/fake_slack_catalog.json` too.
+- Run `npm run typecheck && npm test && npm run selfcheck` after changes to `src/` to catch
+  regressions before they reach CI.
