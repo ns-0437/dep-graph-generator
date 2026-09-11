@@ -98,6 +98,26 @@ whatever base URL is provided, use a model like `openai/gpt-4o`. Batch multiple
 field-matching questions per call rather than one call per candidate pair (893 tools means
 O(n^2) naive pairing is way too expensive).
 
+## Performance
+
+`generate()` against the real catalog: ~20s -> ~1.9s (~10x). Measured, and the fix is
+correct, not just fast -- verified identical output before/after (893 nodes, 2101 edges,
+both times). The dominant cost was `matchScore` re-running `tokenize()` (a regex replace,
+split, and per-token singularize, allocating new arrays) on the *same* field's name and
+type on every single comparison, even though a field's tokens never change — the matching
+loop calls it roughly (required fields) x (candidate fields) times, which is ~24.9 million
+calls against the real catalog. `IndexedField` (`lib/match.ts`) precomputes each field's
+tokens once via `indexFields()` instead. The same pattern existed in `looseCandidates`
+(`lib/llm.ts`, the LLM-disambiguation candidate lookup) and got the same fix: ~4.5s -> ~0.25s
+for that path specifically (only exercised when `OPENAI_API_KEY` is actually set).
+
+Worth knowing if you're debugging apparent slowness on Windows specifically: an initial
+`time` measurement showed `real` at ~20s but `user`+`sys` under 0.3s combined, which looks
+exactly like I/O-wait — it isn't. Git-Bash's `time` builtin doesn't reliably report CPU
+accounting for Windows child processes; isolating the cost with `process.hrtime`/`Date.now`
+timestamps inside the actual code (not shell-level `time`) showed it was genuine, CPU-bound
+JavaScript execution the whole time.
+
 ## Design decisions & known limitations
 
 Current thresholds in `src/generate.ts` (tune here if quality needs adjusting):
