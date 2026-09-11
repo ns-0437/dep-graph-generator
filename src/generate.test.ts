@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, rmSync } from "fs";
+import { execFileSync } from "child_process";
+import { resolve } from "path";
 import { generate } from "./generate.js";
 
 /**
@@ -39,5 +41,55 @@ test("generate() end-to-end on the GitHub catalog meets the grading thresholds",
   assert.ok(
     graph.edges.some((e) => e.label === "pull_number"),
     "must include the README's own pull_number example pattern",
+  );
+});
+
+/**
+ * The tests above call generate() directly, never main() or the actual CLI entrypoint --
+ * confirmed via a c8 cross-check against Node's own --experimental-test-coverage report
+ * (which had been pointing at the wrong lines entirely) that main(), the argv-driven
+ * catalog path, and the two writeFileSync calls were genuinely never exercised by anything
+ * in this suite. These tests spawn the real CLI the way CI's selfcheck.ts and generator.json
+ * both do, and check the actual files it writes.
+ *
+ * Deliberately does NOT run with cwd set to a scratch directory: --import tsx resolves the
+ * tsx package relative to cwd, which fails outside this project's node_modules (verified --
+ * that was the first version of this test, and it failed with ERR_MODULE_NOT_FOUND). So
+ * this runs from the repo root like the real CLI does, which means it's about to overwrite
+ * the real dependency_graph.json/graph.html -- back up and restore their prior content
+ * around the test instead.
+ */
+test("CLI: writes dependency_graph.json and graph.html when run as a subprocess", () => {
+  const catalogPath = resolve("test-fixtures/fake_slack_catalog.json");
+  const generatorPath = resolve("src/generate.ts");
+  const outPath = resolve("dependency_graph.json");
+  const vizPath = resolve("graph.html");
+  const originalOut = existsSync(outPath) ? readFileSync(outPath, "utf-8") : null;
+  const originalViz = existsSync(vizPath) ? readFileSync(vizPath, "utf-8") : null;
+  try {
+    execFileSync("node", ["--import", "tsx", generatorPath, catalogPath], { stdio: "pipe" });
+    const graph = JSON.parse(readFileSync(outPath, "utf-8"));
+    assert.deepEqual(
+      graph.nodes.map((n: { id: string }) => n.id).sort(),
+      ["SLACK_LIST_CHANNELS", "SLACK_SEND_MESSAGE"],
+    );
+    const html = readFileSync(vizPath, "utf-8");
+    assert.ok(html.startsWith("<!doctype html>"));
+    assert.ok(html.includes("SLACK_LIST_CHANNELS"));
+  } finally {
+    if (originalOut !== null) writeFileSync(outPath, originalOut, "utf-8");
+    else rmSync(outPath, { force: true });
+    if (originalViz !== null) writeFileSync(vizPath, originalViz, "utf-8");
+    else rmSync(vizPath, { force: true });
+  }
+});
+
+test("CLI: exits non-zero with a clear error when no catalog path is given", () => {
+  const generatorPath = resolve("src/generate.ts");
+  // No output files are ever written on this path -- loadCatalog throws before
+  // generate()/writeFileSync run -- so there's nothing to back up here.
+  assert.throws(
+    () => execFileSync("node", ["--import", "tsx", generatorPath], { stdio: "pipe" }),
+    /pass the toolkit catalog path/,
   );
 });
