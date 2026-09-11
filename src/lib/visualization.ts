@@ -37,6 +37,7 @@ export function renderVisualizationHtml(graph: Graph): string {
   #legend { position:fixed; bottom:10px; left:10px; font-size:11px; color:#8a93a6; background:#12151cd0; padding:8px 10px; border-radius:6px; max-width:220px; }
   #toolbar a { color:#8ab4ff; text-decoration:none; margin-left:auto; }
   #toolbar a:hover { text-decoration:underline; }
+  #loading { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#8a93a6; font-size:14px; background:#0b0d12; z-index:5; }
 </style>
 </head>
 <body>
@@ -48,7 +49,7 @@ export function renderVisualizationHtml(graph: Graph): string {
   <span id="match-count" style="color:#8a93a6"></span>
   <a href="https://github.com/ns-0437/dep-graph-generator" target="_blank" rel="noopener">View source on GitHub</a>
 </div>
-<div id="wrap"><canvas id="c"></canvas></div>
+<div id="wrap"><canvas id="c"></canvas><div id="loading">Laying out the graph…</div></div>
 <div id="tooltip"></div>
 <div id="legend">Drag background to pan · wheel to zoom · drag a node to reposition · click a node to inspect its edges.</div>
 <script>
@@ -61,6 +62,7 @@ const GRAPH = ${escapeForInlineScript(JSON.stringify(graph))};
   const searchBox = document.getElementById("search");
   const showIsolatedBox = document.getElementById("show-isolated");
   const matchCountEl = document.getElementById("match-count");
+  const loadingEl = document.getElementById("loading");
 
   const degree = new Map();
   for (const n of GRAPH.nodes) degree.set(n.id, 0);
@@ -286,15 +288,29 @@ const GRAPH = ${escapeForInlineScript(JSON.stringify(graph))};
     draw();
   });
   showIsolatedBox.addEventListener("change", () => {
-    buildDataset(showIsolatedBox.checked);
-    layout(showIsolatedBox.checked ? 120 : 220);
-    draw();
+    if (loadingEl) loadingEl.style.display = "flex";
+    setTimeout(() => {
+      buildDataset(showIsolatedBox.checked);
+      layout(showIsolatedBox.checked ? 120 : 220);
+      draw();
+      if (loadingEl) loadingEl.style.display = "none";
+    }, 0);
   });
 
   resize();
-  buildDataset(false);
-  layout(220);
-  draw();
+  // The force layout for a few hundred nodes is O(n^2) per iteration and runs
+  // synchronously -- on the full GitHub catalog it blocks the main thread for over a
+  // second. setTimeout(fn, 0) defers that work to its own event-loop turn, after the
+  // browser has already painted the "Laying out the graph..." message, instead of the
+  // page appearing frozen/blank the whole time. (requestAnimationFrame would be the more
+  // idiomatic choice, but isn't guaranteed to fire promptly in every embedding context --
+  // setTimeout is the more universally reliable primitive for "yield, then run this".)
+  setTimeout(() => {
+    buildDataset(false);
+    layout(220);
+    draw();
+    if (loadingEl) loadingEl.style.display = "none";
+  }, 0);
 })();
 </script>
 </body>
