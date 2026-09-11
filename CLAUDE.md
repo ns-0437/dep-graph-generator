@@ -231,6 +231,12 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   inside an already-offset container.
 - (Checked, not a bug, but verified rather than assumed: `npm audit` reports 0
   vulnerabilities in the current dependency tree.)
+- (Checked, deliberately not acted on: `npm outdated` shows both `openai` and `typescript`
+  have a major version available beyond what the `^` ranges in package.json allow — current
+  major versions are patched and current within themselves. Bumping either is a real,
+  separate task (major versions can carry breaking API changes — the OpenAI SDK's call
+  shape, or new strict-mode TS errors) that deserves its own dedicated testing pass, not an
+  incidental version bump folded into unrelated work.)
 
 ## Commands
 
