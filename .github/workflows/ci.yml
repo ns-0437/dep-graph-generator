@@ -22,8 +22,11 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
-      - name: Unit tests
-        run: npm test
+      - name: Unit tests (with coverage report)
+        # Runs the coverage variant instead of a separate `npm test` step -- same tests,
+        # same pass/fail signal, but the report shows up in CI logs instead of only ever
+        # being seen by whoever remembers to run `npm run coverage` locally.
+        run: npm run coverage
 
       - name: Self-check against the GitHub catalog
         # selfcheck.ts (provided, left unmodified) only prints WARNING text on low
