@@ -17,6 +17,14 @@ three run in CI on every push.
 
 ---
 
+*Everything below this line is the original take-home assessment brief, kept verbatim for
+context (it explains the actual problem being solved). References to "your Litmus
+assessment page," `litmus submit`, and a graded token budget describe that original
+assessment, which has already been completed and graded — they don't apply to this repo,
+which is the author's own continuation of the project afterward.*
+
+---
+
 we care about the quality and structure of the dependency relationships you discover
 
 some actions need precursor actions before being able to execute them
