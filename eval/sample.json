@@ -930,8 +930,8 @@
           "secret_name"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "Producer lists ORGANIZATION Codespaces secrets; consumer creates/updates a Codespaces secret for the AUTHENTICATED USER (a personal secret). Org-scoped and user-scoped secrets are separate namespaces even within the same Codespaces category."
     },
     {
       "from": "GITHUB_CREATE_A_GITHUB_PAGES_DEPLOYMENT",
@@ -961,8 +961,8 @@
           "pages_deployment_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "pages_deployment_id is assigned by GitHub upon creating the deployment, genuinely new info."
     },
     {
       "from": "GITHUB_CLOSE_PULL_REQUEST",
@@ -991,8 +991,8 @@
           "repository_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same relationship as #24 (data.base.repo.id is a genuine, valid repository_id), different consumer tool."
     },
     {
       "from": "GITHUB_FIND_PULL_REQUESTS",
@@ -1018,8 +1018,8 @@
           "pull_number"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Searching for PRs requires no inputs and returns their pull_number -- the exact discover-then-act pattern the original README describes."
     },
     {
       "from": "GITHUB_CREATE_DEPLOYMENT_PROTECTION_RULE",
@@ -1049,8 +1049,8 @@
           "deployment_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "The producer's response id identifies the newly-created protection RULE itself (a policy/configuration object), not any specific deployment instance -- a rule id and a deployment id are different resources that both happen to have a generic 'id' field."
     },
     {
       "from": "GITHUB_CREATE_REACTION_FOR_AN_ISSUE",
@@ -1082,8 +1082,8 @@
           "reaction_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "An issue reaction and a commit-comment reaction are separate, independently-numbered resources in GitHub's reactions API (scoped by target type). Consumer also requires comment_id, which creating an issue reaction has no way to supply."
     },
     {
       "from": "GITHUB_CREATE_A_CODESPACE_FOR_THE_AUTHENTICATED_USER",
@@ -1109,8 +1109,8 @@
           "properties"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "Consumer needs repository_names (plural, up to 30) but the producer only supplies a single repository's name from creating one codespace -- a singular value can't populate a plural/array-shaped field. Also inherits the same practical circularity as #1/#37 (a specific repo must already be known to create a codespace for it)."
     },
     {
       "from": "GITHUB_CREATE_A_CODESPACE_FOR_THE_AUTHENTICATED_USER",
@@ -1134,8 +1134,8 @@
           "codespace_name"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "The justifying field is CodespaceMachine.name -- the hardware/VM SKU name (e.g. 'standardLinux32gb'), not the codespace instance's own name. Coincidental match at the wrong nesting level of the schema: two unrelated 'name' fields under different parent types."
     },
     {
       "from": "GITHUB_CREATE_A_CHECK_RUN",
@@ -1166,8 +1166,8 @@
           "pull_number"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "GitHub's real check-run API does include a pull_requests array identifying PRs associated with the checked commit -- a genuine, documented relationship, unlike #9's coincidental check-run/workflow-run token collision."
     },
     {
       "from": "GITHUB_ADD_ASSIGNEES_TO_AN_ISSUE",
@@ -1197,8 +1197,8 @@
           "user_login"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "user_login is a globally valid, context-independent GitHub username (unlike scoped resource IDs such as comment_id/secret_name/reaction_id, which only mean something within a specific sub-resource's namespace) -- it genuinely identifies the same person anywhere. The specific workflow (look up this particular assignee's enterprise invite status) is unusual, but per this project's own labeling criteria, data validity is the bar, not workflow plausibility."
     },
     {
       "from": "GITHUB_LIST_SPONSORABLES",
@@ -1224,8 +1224,8 @@
           "description"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Listing sponsorable entities requires nothing; sponsorable_id is genuinely discovered from the list."
     },
     {
       "from": "GITHUB_LIST_NOTIFICATIONS",
@@ -1249,8 +1249,8 @@
           "thread_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Listing notifications requires nothing; thread_id is genuinely discovered from the list."
     },
     {
       "from": "GITHUB_LIST_JOBS_FOR_A_WORKFLOW_RUN",
@@ -1280,8 +1280,8 @@
           "job_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Listing jobs for a workflow run requires only run_id; job_id is genuinely discovered from the list, both within the same workflow-run context."
     },
     {
       "from": "GITHUB_LIST_ENVIRONMENT_SECRETS",
@@ -1311,8 +1311,8 @@
           "selected_repository_ids"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "Producer lists secrets scoped to a specific repository+environment; consumer operates on an organization-level secret. Environment-scoped and organization-scoped secret names are different namespaces, another instance of the recurring generic-identifier-spans-incompatible-scopes pattern."
     },
     {
       "from": "GITHUB_CONVERT_PULL_REQUEST_TO_DRAFT",
@@ -1341,8 +1341,8 @@
           "reviewers"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same GraphQL-id-to-numeric-pull_number pattern as #10, for a different consumer."
     },
     {
       "from": "GITHUB_GET_PAGES_SITE",
