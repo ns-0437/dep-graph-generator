@@ -1827,8 +1827,8 @@
           "contexts"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "The existing required status-check contexts on one branch are genuinely valid, reusable data -- most plausibly useful for copying protection configuration from one branch to another (e.g. 'make this release branch match main's required checks'), a real and common admin workflow. (Note: entry #54 upstream fit the same 'read existing config, write it elsewhere' shape and was called ambiguous instead of correct -- an acknowledged inconsistency, see RESULTS.md.)"
     },
     {
       "from": "GITHUB_GET_A_BRANCH",
@@ -1859,8 +1859,8 @@
           "teams"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same copy-branch-protection-config reasoning as #60."
     },
     {
       "from": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
@@ -1887,8 +1887,8 @@
           "username"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "Same webhook-delivery-basic-auth-username mismatch as #47/#50/#64."
     },
     {
       "from": "GITHUB_CREATE_A_GITHUB_PAGES_SITE",
@@ -1918,8 +1918,8 @@
           "contexts"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same genuine, valid Pages-source-branch reasoning as #45/#46/#48/#56/#58."
     },
     {
       "from": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
@@ -1948,8 +1948,8 @@
           "username"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "Same webhook-delivery-basic-auth-username mismatch as #47/#50."
     },
     {
       "from": "GITHUB_CREATE_AN_ISSUE",
@@ -1978,8 +1978,8 @@
           "access_token"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "performed_via_github_app is null unless a GitHub App (not a human) created the issue -- usually unpopulated for this producer. Even when present, there's no reason 'whichever app happened to create this issue' is the specific OAuth app whose token you want to check."
     },
     {
       "from": "GITHUB_GET_AN_ENVIRONMENT_VARIABLE",
@@ -2011,8 +2011,8 @@
           "value"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "An environment variable's string value and an arbitrary project item field's value are unrelated -- same generic-field-name coincidence as #49."
     },
     {
       "from": "GITHUB_CREATE_A_CHECK_RUN",
@@ -2044,8 +2044,8 @@
           "description"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "A CI check run's result summary (e.g. test pass/fail text) and a security vulnerability report's summary are semantically unrelated content, despite sharing the field name 'summary'."
     },
     {
       "from": "GITHUB_GET_BRANCH_PROTECTION",
@@ -2076,8 +2076,8 @@
           "apps"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same copy-branch-protection-config reasoning as #60/#61, for the apps restriction list."
     },
     {
       "from": "GITHUB_CREATE_AN_ISSUE_COMMENT",
@@ -2107,8 +2107,8 @@
           "access_token"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "Same nullable/coincidental performed_via_github_app.client_id issue as #65."
     },
     {
       "from": "GITHUB_GET_WORKFLOW_RUN_USAGE",
@@ -2138,8 +2138,8 @@
           "job_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "A workflow run's billable-usage breakdown genuinely includes the job_id of each job that actually ran as part of that run -- a real, correctly-scoped relationship."
     },
     {
       "from": "GITHUB_LIST_ISSUE_EVENTS_FOR_A_REPOSITORY",
@@ -2169,8 +2169,8 @@
           "assignee"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Issue.assignee is a globally valid GitHub username, same reasoning as #39/#59."
     },
     {
       "from": "GITHUB_CREATE_OR_UPDATE_GITHUB_PAGES_SITE",
@@ -2199,8 +2199,8 @@
           "branch"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same genuine Pages-source-branch reasoning as #45 etc."
     },
     {
       "from": "GITHUB_GET_A_PACKAGE_VERSION_FOR_THE_AUTHENTICATED_USER",
@@ -2230,8 +2230,8 @@
           "tag"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "A Docker image tag (container registry namespace) and a Git release tag (GitHub release namespace) are different tag spaces with no guaranteed correspondence -- projects sometimes align them by convention, but there's no structural guarantee (a docker tag like 'latest' or 'nightly' would not correspond to any release tag at all)."
     },
     {
       "from": "GITHUB_CREATE_OR_UPDATE_GITHUB_PAGES_SITE",
@@ -2260,8 +2260,8 @@
           "branch"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same genuine Pages-source-branch reasoning as #45 etc."
     },
     {
       "from": "GITHUB_CREATE_A_GITHUB_APP_FROM_A_MANIFEST",
