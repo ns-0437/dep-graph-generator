@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,22 +13,21 @@ import { join } from "node:path";
  * generate.test.ts's coverage of the same underlying lib functions and are re-run by hand
  * each time the graph changes, per eval/README.md.
  */
-function runOn(sample: object): string {
+function runOn(sample: object): { stdout: string; stderr: string } {
   const dir = mkdtempSync(join(tmpdir(), "eval-precision-test-"));
   const path = join(dir, "sample.json");
   writeFileSync(path, JSON.stringify(sample), "utf-8");
   try {
-    return execFileSync("node", ["--import", "tsx", "eval/compute-precision.ts", path], {
-      encoding: "utf-8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const result = spawnSync("node", ["--import", "tsx", "eval/compute-precision.ts", path], { encoding: "utf-8" });
+    assert.equal(result.status, 0, `compute-precision.ts exited ${result.status}: ${result.stderr}`);
+    return { stdout: result.stdout, stderr: result.stderr };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 }
 
 test("compute-precision reports per-tier and overall precision, excluding ambiguous", () => {
-  const out = runOn({
+  const { stdout } = runOn({
     entries: [
       { heuristicScore: 5, verdict: "correct" },
       { heuristicScore: 5, verdict: "correct" },
@@ -37,12 +36,23 @@ test("compute-precision reports per-tier and overall precision, excluding ambigu
       { heuristicScore: 4, verdict: "ambiguous" },
     ],
   });
-  assert.match(out, /Tier 5 .*: 3 sampled, 2 correct, 1 incorrect, 0 ambiguous -> precision 66\.7%/);
-  assert.match(out, /Tier 4 .*: 2 sampled, 1 correct, 0 incorrect, 1 ambiguous -> precision 100\.0%/);
-  assert.match(out, /Overall: 5 sampled, 3 correct, 1 incorrect, 1 ambiguous -> precision 75\.0%/);
+  assert.match(stdout, /Tier 5 .*: 3 sampled, 2 correct, 1 incorrect, 0 ambiguous -> precision 66\.7%/);
+  assert.match(stdout, /Tier 4 .*: 2 sampled, 1 correct, 0 incorrect, 1 ambiguous -> precision 100\.0%/);
+  assert.match(stdout, /Overall: 5 sampled, 3 correct, 1 incorrect, 1 ambiguous -> precision 75\.0%/);
 });
 
 test("compute-precision handles a tier with zero decided entries", () => {
-  const out = runOn({ entries: [{ heuristicScore: 5, verdict: "ambiguous" }] });
-  assert.match(out, /Tier 5 .*: 1 sampled, 0 correct, 0 incorrect, 1 ambiguous -> no decided entries/);
+  const { stdout } = runOn({ entries: [{ heuristicScore: 5, verdict: "ambiguous" }] });
+  assert.match(stdout, /Tier 5 .*: 1 sampled, 0 correct, 0 incorrect, 1 ambiguous -> no decided entries/);
+});
+
+test("compute-precision warns on stderr about unlabeled entries but still reports the rest", () => {
+  const { stdout, stderr } = runOn({
+    entries: [
+      { heuristicScore: 5, verdict: "correct" },
+      { heuristicScore: 5, verdict: null },
+    ],
+  });
+  assert.match(stderr, /WARNING: 1 of 2 entries have no verdict yet/);
+  assert.match(stdout, /Tier 5 .*: 1 sampled, 1 correct, 0 incorrect, 0 ambiguous -> precision 100\.0%/);
 });
