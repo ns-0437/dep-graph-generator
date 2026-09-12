@@ -30,28 +30,10 @@ import {
 } from "../src/lib/match.js";
 import type { IndexedField } from "../src/lib/match.js";
 import type { InputField, Tool } from "../src/types.js";
+import { mulberry32, shuffle } from "./lib/sampling.js";
 
 const SEED = 424242;
 const SAMPLE_SIZE = 60;
-
-function mulberry32(seed: number) {
-  return function () {
-    seed |= 0;
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function shuffle<T>(arr: T[], rand: () => number): T[] {
-  const out = arr.slice();
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [out[i], out[j]] = [out[j]!, out[i]!];
-  }
-  return out;
-}
 
 const tools: Tool[] = loadCatalog("github_catalog.json");
 const toolBySlug = new Map<string, Tool>();

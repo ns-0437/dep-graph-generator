@@ -16,30 +16,12 @@ import { indexFields, buildLeafFrequency, matchScore, SCORE_THRESHOLD } from "..
 import type { IndexedField } from "../src/lib/match.js";
 import { tokenize } from "../src/lib/tokenize.js";
 import type { InputField } from "../src/types.js";
+import { mulberry32, shuffle } from "./lib/sampling.js";
 
 // Fixed, documented seed -- the sample is reproducible from this, not re-randomized on
 // every run (which would make "did labeling stay consistent" impossible to check later).
 const SEED = 424242;
 const PER_TIER = 45;
-
-function mulberry32(seed: number) {
-  return function () {
-    seed |= 0;
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function shuffle<T>(arr: T[], rand: () => number): T[] {
-  const out = arr.slice();
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [out[i], out[j]] = [out[j]!, out[i]!];
-  }
-  return out;
-}
 
 const tools = loadCatalog("github_catalog.json");
 const toolBySlug = new Map<string, any>();
