@@ -485,8 +485,8 @@
           "issue_number"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "issue_number is assigned by GitHub upon creation, genuinely new info; producer does not require issue_number itself."
     },
     {
       "from": "GITHUB_GET_AN_ARTIFACT",
@@ -516,8 +516,8 @@
           "run_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Artifact details genuinely include the id of the workflow_run that produced them (WorkflowRunInfo.id) -- a real, exact relationship, unlike the coincidental token-collision cases."
     },
     {
       "from": "GITHUB_LIST_PROJECT_COLUMNS",
@@ -544,8 +544,8 @@
           "position"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Listing columns requires only project_id, not column_id -- genuine discovery."
     },
     {
       "from": "GITHUB_LIST_PROJECT_COLUMNS",
@@ -571,8 +571,8 @@
           "column_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same relationship as #17."
     },
     {
       "from": "GITHUB_CREATE_A_COMMIT_COMMENT",
@@ -602,8 +602,8 @@
           "comment_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "A commit comment id and a gist comment id are different, independently-numbered resources in the real GitHub API -- a commit-comment ID has no meaning as a gist comment ID. Consumer also requires gist_id, which the producer has no way to supply at all (no gist is involved in commenting on a commit)."
     },
     {
       "from": "GITHUB_CREATE_A_COMMIT_COMMENT",
@@ -635,8 +635,8 @@
           "content"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "A commit comment id and an issue comment id are different, independently-numbered resources -- same class of mistake as #19, just a different target resource."
     },
     {
       "from": "GITHUB_LIST_GISTS_FOR_THE_AUTHENTICATED_USER",
@@ -661,8 +661,8 @@
           "comment_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Listing your own gists requires nothing; gist_id is genuinely discovered from the list."
     },
     {
       "from": "GITHUB_LIST_ORGANIZATION_CODESPACES_SECRETS",
@@ -690,8 +690,8 @@
           "repository_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "Producer lists Codespaces secrets; consumer (per its own description) operates on an organization-level Dependabot secret. Codespaces and Dependabot secrets are separate, independently-namespaced secret stores in GitHub -- a name from one does not carry over to the other even if the literal string happens to match."
     },
     {
       "from": "GITHUB_LIST_ORGANIZATION_SECRETS",
@@ -719,8 +719,8 @@
           "repository_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Both concern the same kind of organization (Actions) secret; no category mismatch signal here unlike #22/#26."
     },
     {
       "from": "GITHUB_CLOSE_PULL_REQUEST",
@@ -749,8 +749,8 @@
           "repository_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Closing a PR returns its base repository info (data.base.repo.id) -- a genuine, valid repository_id for that repo, reusable elsewhere even if the specific workflow (close a PR, then remove that repo from an app installation) is an unusual sequence. Data validity, not workflow plausibility, is the bar."
     },
     {
       "from": "GITHUB_ADD_TEAM_ACCESS_RESTRICTIONS",
@@ -781,8 +781,8 @@
           "username"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "Producer requires teams (plural) as its own input -- you specify which teams to grant access to, and its response just confirms those same teams' slugs back. Circular in practice, but not caught by the circularity check, which only matches identical field names: 'teams' (plural, producer input) vs 'team_slug' (singular, the field being supplied) are literally different strings even though they refer to the same underlying data. A real, newly-found limitation: the circularity check misses plural/singular naming variations."
     },
     {
       "from": "GITHUB_LIST_ORGANIZATION_SECRETS",
@@ -810,8 +810,8 @@
           "repository_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "Producer explicitly lists GitHub Actions secrets (per its own description); consumer operates on an organization-level Codespaces secret -- same category mismatch as #22."
     },
     {
       "from": "GITHUB_ADD_A_REPOSITORY_COLLABORATOR",
@@ -839,8 +839,8 @@
           "userId"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same username-to-id lookup pattern as #7, for a different consumer."
     },
     {
       "from": "GITHUB_LIST_DISCUSSION_COMMENTS",
@@ -871,8 +871,8 @@
           "comment_number"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Both concern the same resource (team discussion comments) -- listing comments requires only discussion_number, comment_number is genuinely discovered from the list."
     },
     {
       "from": "GITHUB_CREATE_AN_ISSUE_COMMENT",
@@ -903,8 +903,8 @@
           "comment_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "An issue comment id and a pull-request-review comment id are different, independently-numbered resources in the real GitHub API -- same class of cross-resource comment_id confusion as #19/#20."
     },
     {
       "from": "GITHUB_LIST_ORGANIZATION_CODESPACES_SECRETS",
