@@ -262,6 +262,22 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   shape, or new strict-mode TS errors) that deserves its own dedicated testing pass, not an
   incidental version bump folded into unrelated work.)
 
+**Bugs found by actually measuring correctness, not just that the generator runs** (see
+[`eval/RESULTS.md`](eval/RESULTS.md) for the full precision/recall evaluation this came from):
+- 42% of all edges (876/2101) were circular: a candidate producer that itself required the
+  exact field it claimed to supply (e.g. `GITHUB_CLOSE_ISSUE` requires `issue_number` and
+  its response naturally echoes the issue it just closed) — you'd need the value already to
+  call the "producer". Fixed via `isCircularProducer` in `src/lib/match.ts`; edges dropped
+  2101 -> 1800.
+- `singularize()` never pluralized `"ids"` (the trailing-`s`-strip rule's `length > 3` guard,
+  meant to protect short singular words like `id`/`os`, also protected this 3-letter plural),
+  making every `*_ids` field silently unmatchable regardless of how good the rest of the
+  scoring was. Fixed with a narrow, catalog-verified exception; edges 1800 -> 1825.
+- Hand-labeling 90 sampled edges found precision is 60.7%, not the ~100% "it runs and
+  produces plausible-looking edges" impression the earlier checks gave — dominated by scoped
+  identifiers (`comment_id`, `secret_name`, `run_id`, ...) that mean different things in
+  different sub-resource namespaces but share a literal field name.
+
 ## Commands
 
 ```bash

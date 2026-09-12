@@ -5,14 +5,16 @@
 ## Live visualization
 
 **https://ns-0437.github.io/dep-graph-generator/** — the generated dependency graph for the
-GitHub toolkit (893 tools, 2101 edges), rendered live via GitHub Pages. Pan/zoom, search by
+GitHub toolkit (893 tools, 1825 edges), rendered live via GitHub Pages. Pan/zoom, search by
 slug substring, and click a node to see what it supplies to and needs from other tools.
 
-See [CLAUDE.md](CLAUDE.md) for how the matching actually works, the design decisions behind
-it, and two real bugs a proper test suite caught (a pluralization bug affecting 41 nodes,
-and a catalog-loading bug that silently swallowed malformed input).
+See [CLAUDE.md](CLAUDE.md) for how the matching actually works and the design decisions
+behind it, and [`eval/RESULTS.md`](eval/RESULTS.md) for a hand-labeled measurement of how
+correct the graph actually is: 60.7% precision on sampled edges, a 19.2% miss rate among
+fields the heuristic couldn't resolve, and one real tokenizer bug (`singularize("ids")`)
+found and fixed along the way, with before/after edge counts.
 
-`npm run verify` runs the full check (typecheck + 57 tests + selfcheck) locally in a few
+`npm run verify` runs the full check (typecheck + tests + selfcheck) locally in a few
 seconds; the same three run in CI on every push.
 
 ### Try it on a different toolkit
