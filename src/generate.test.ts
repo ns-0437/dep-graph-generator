@@ -160,6 +160,50 @@ test("generate(): caps tied producers at MAX_PRODUCERS_PER_FIELD, keeping the fi
   assert.deepEqual(producers, ["PRODUCER_A", "PRODUCER_B", "PRODUCER_C"]);
 });
 
+/**
+ * Real finding while building the precision eval (eval/sample-edges.ts): 876 of 2101 edges
+ * (42%) had a producer that itself required the same field name as one of its own inputs --
+ * e.g. GITHUB_CLOSE_ISSUE requires issue_number to be called at all, so its response
+ * describing "the issue I just closed" isn't a real discovery path for issue_number, it's an
+ * echo. Reconstructs that pattern directly: a circular producer that would otherwise tie for
+ * the best score must be excluded, while a genuine (non-circular) producer for the exact same
+ * field is kept.
+ */
+test("generate(): excludes a producer that itself requires the same field it would supply", async () => {
+  const catalog = [
+    {
+      // Mirrors GITHUB_CLOSE_ISSUE: needs issue_number to be called, so its own response
+      // describing that issue can't be a real discovery path for issue_number.
+      slug: "CIRCULAR_PRODUCER",
+      inputParameters: { required: ["issue_number"] },
+      outputParameters: {
+        properties: { data: { $ref: "#/$defs/Issue" } },
+        $defs: { Issue: { type: "object", properties: { number: { type: "integer" } } } },
+      },
+    },
+    {
+      // Mirrors GITHUB_CREATE_AN_ISSUE: the number is assigned by creation, not needed to
+      // call it -- a genuine discovery.
+      slug: "GENUINE_PRODUCER",
+      inputParameters: { required: ["title"] },
+      outputParameters: {
+        properties: { data: { $ref: "#/$defs/Issue" } },
+        $defs: { Issue: { type: "object", properties: { number: { type: "integer" } } } },
+      },
+    },
+    {
+      slug: "CONSUMER",
+      inputParameters: { required: ["issue_number"] },
+      outputParameters: { properties: {} },
+    },
+  ];
+  const graph = await generate(catalog);
+  const producers = graph.edges
+    .filter((e) => e.to === "CONSUMER" && e.label === "issue_number")
+    .map((e) => e.from);
+  assert.deepEqual(producers, ["GENUINE_PRODUCER"]);
+});
+
 test("CLI: exits non-zero with a clear error when no catalog path is given", () => {
   const generatorPath = resolve("src/generate.ts");
   // No output files are ever written on this path -- loadCatalog throws before

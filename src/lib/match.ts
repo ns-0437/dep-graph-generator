@@ -105,3 +105,18 @@ export function isContextField(
   const count = inputFrequency.get(name) ?? 0;
   return count >= minCount && count / totalTools > ratio;
 }
+
+/**
+ * True if the candidate producer itself requires this exact field name as one of its own
+ * inputs -- meaning it can't actually be a useful precursor for discovering that value,
+ * since you'd need the value already just to call the producer. E.g. GITHUB_CLOSE_ISSUE
+ * requires issue_number as input, and its response naturally describes the issue it just
+ * closed (so its output has a matching Issue.number field) -- but suggesting "call
+ * GITHUB_CLOSE_ISSUE to get issue_number" is circular, not a real dependency chain. This
+ * pattern turned out to affect 876 of 2101 edges (42%) before being excluded -- almost
+ * every "single-entity action" tool (get/update/close/add-to a specific thing) echoes its
+ * own identifying inputs back in its response.
+ */
+export function isCircularProducer(fieldName: string, producerRequiredNames: ReadonlySet<string>): boolean {
+  return producerRequiredNames.has(fieldName);
+}

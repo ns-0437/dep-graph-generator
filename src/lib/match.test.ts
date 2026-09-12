@@ -5,6 +5,7 @@ import {
   matchScore,
   isGeneric,
   isContextField,
+  isCircularProducer,
   buildLeafFrequency,
   buildInputFrequency,
   indexFields,
@@ -106,4 +107,17 @@ test("isContextField: false for a field required by only a handful of tools in a
   const requiredByTool: InputField[][] = Array.from({ length: 25 }, () => [input("issue_number")]);
   const freq = buildInputFrequency(requiredByTool);
   assert.equal(isContextField("issue_number", freq, totalTools), false);
+});
+
+test("isCircularProducer: true when the producer itself requires the same field", () => {
+  // GITHUB_CLOSE_ISSUE requires issue_number to be called at all, so its response
+  // describing "the issue I just closed" can't be a real discovery path for issue_number --
+  // you needed the value already just to make the call.
+  assert.equal(isCircularProducer("issue_number", new Set(["owner", "repo", "issue_number"])), true);
+});
+
+test("isCircularProducer: false when the producer doesn't require that field itself", () => {
+  // GITHUB_CREATE_AN_ISSUE doesn't need issue_number to be called (the number is assigned
+  // by the creation itself) -- a genuine discovery, not an echo.
+  assert.equal(isCircularProducer("issue_number", new Set(["owner", "repo", "title"])), false);
 });

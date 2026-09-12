@@ -15,6 +15,7 @@ import {
   indexFields,
   matchScore,
   isContextField,
+  isCircularProducer,
   SCORE_THRESHOLD,
   MAX_PRODUCERS_PER_FIELD,
 } from "./lib/match.js";
@@ -64,6 +65,14 @@ export async function generate(tools: Tool[], client?: ChatClient): Promise<Grap
   const inputFrequency = buildInputFrequency([...requiredByTool.values()]);
   const totalTools = toolBySlug.size;
 
+  // A producer that itself requires the same field name as one of its own inputs can't
+  // actually help discover that value -- you'd need it already just to call the producer.
+  // See isCircularProducer in lib/match.ts for the concrete example and measured impact.
+  const requiredNamesByTool = new Map<string, Set<string>>();
+  for (const [slug, inputs] of requiredByTool) {
+    requiredNamesByTool.set(slug, new Set(inputs.map((i) => i.name)));
+  }
+
   const edges: Edge[] = [];
   const seen = new Set<string>();
   const unresolved: { consumer: string; field: InputField }[] = [];
@@ -80,6 +89,7 @@ export async function generate(tools: Tool[], client?: ChatClient): Promise<Grap
       const candidates: { slug: string; score: number }[] = [];
       for (const [producerSlug, fields] of indexedOutputsByTool) {
         if (producerSlug === consumerSlug) continue;
+        if (isCircularProducer(input.name, requiredNamesByTool.get(producerSlug) ?? new Set())) continue;
         let best = 0;
         for (const f of fields) best = Math.max(best, matchScore(input, f, leafFrequency));
         if (best >= SCORE_THRESHOLD) candidates.push({ slug: producerSlug, score: best });
