@@ -1,30 +1,97 @@
 {
   "seed": 424242,
   "sampleSize": 60,
-  "totalUnresolved": 262,
+  "totalUnresolved": 253,
   "generatedFrom": "github_catalog.json (re-run through the same heuristic as generate.ts)",
   "methodology": "Simple random sample (unlike sample-edges.ts, unresolved fields aren't naturally tiered by heuristic score, so there's no stratification axis here) of fields the heuristic left unresolved. Each entry needs 'verdict': 'real_miss' (a producer for this field genuinely exists somewhere in the catalog but the heuristic didn't find it -- e.g. a near-miss that was wrongly excluded, or a real match the token/type-name matching approach is structurally unable to express), 'true_negative' (the field is genuinely something only the caller can supply -- free text, a boolean/enum flag, a value with no natural producer anywhere in this catalog), or 'ambiguous'. See eval/README.md.",
   "entries": [
     {
       "consumer": {
-        "slug": "GITHUB_SET_REPO_RUNNER_LABELS",
-        "description": "Replaces all custom labels for a specific self-hosted runner in a repository; an empty list for `labels` removes all existing custom labels.",
+        "slug": "GITHUB_DOWNLOAD_WORKFLOW_RUN_ATTEMPT_LOGS",
+        "description": "Downloads a ZIP archive of logs for a specific workflow run attempt. Returns a downloadable ZIP file containing logs for all jobs and steps in the workflow run.",
         "requiredInputs": [
           "owner",
           "repo",
-          "runner_id",
-          "labels"
+          "run_id",
+          "attempt_number"
         ]
       },
-      "field": "labels",
+      "field": "attempt_number",
+      "nearMiss": null,
+      "verdict": "real_miss",
+      "notes": "WorkflowRun.run_attempt (GET_A_WORKFLOW_RUN) is the exact value wanted -- \"Attempt number of the run, 1 for first attempt and higher if re-run.\" The heuristic can't see it: leaf tokens for 'run_attempt' are {run, attempt}, and 'run' is not a token of the input name 'attempt_number' at all, so the subset check fails outright. Same field, reordered/renamed, not a generic-threshold issue."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_UPDATE_AN_ISSUE_COMMENT",
+        "description": "Updates an existing comment on an issue or pull request within a specified repository. You can only update comments that the authenticated user has permission to edit. The comment_id can be obtained from the list_issue_comments or get_an_issue_comment actions.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "comment_id",
+          "body"
+        ]
+      },
+      "field": "body",
       "nearMiss": {
-        "producer": "GITHUB_CLOSE_PULL_REQUEST",
-        "producerDescription": "Closes an open pull request without merging it. The pull request state is set to \"closed\" and it can be reopened later if needed. Use this action when you want to reject or abandon a pull request without merging the proposed changes into the base branch. You must have write access to the repository to close pull requests.",
+        "producer": "GITHUB_ADD_ASSIGNEES_TO_AN_ISSUE",
+        "producerDescription": "Adds assignees to a GitHub issue. This action only adds users - it does not remove existing assignees. Changes are silently ignored if the authenticated user lacks push access to the repository.",
         "score": 1,
         "excludedAsCircular": false
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "true_negative",
+      "notes": "Free-text comment body the caller authors; no producer should exist."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_UPDATE_SUBSCRIPTION",
+        "description": "Tool to update notification subscription state for issues, pull requests, or discussions. Use when you need to subscribe, unsubscribe, or ignore notifications for a specific GitHub item.",
+        "requiredInputs": [
+          "subscribableId",
+          "state"
+        ]
+      },
+      "field": "subscribableId",
+      "nearMiss": null,
+      "verdict": "real_miss",
+      "notes": "'subscribableId' (camelCase, GraphQL-style) is functionally the same as the node_id GitHub returns on every Issue/PullRequest/Discussion REST response (1300+ occurrences catalog-wide) -- but the heuristic can't connect them: leaf tokens for 'node_id' are {node, id}, 'node' isn't a token of 'subscribableId' at all, and this catalog doesn't model a shared 'Subscribable' interface type the way GraphQL does. A real relationship the token/type-name approach has no vocabulary to express."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_CREATE_AN_ORGANIZATION_PROJECT",
+        "description": "Creates a new classic project board within a specified GitHub organization. Note: This action uses GitHub's Projects (classic) REST API. The classic projects feature may be disabled in some organizations, and GitHub recommends migrating to Projects V2 (accessible via GraphQL API) for new projects. Requirements: - The authenticated user must be an organization member with project creation permissions - Classic projects must be enabled for the organization - Requires 'repo' and 'admin:org' or 'write:org' scopes",
+        "requiredInputs": [
+          "org",
+          "name"
+        ]
+      },
+      "field": "name",
+      "nearMiss": {
+        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
+        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "true_negative",
+      "notes": "Caller-chosen new project name."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_GET_CODE_OF_CONDUCT_GRAPH_QL",
+        "description": "Tool to look up a code of conduct by its key using GitHub's GraphQL API. Use when you need to fetch code of conduct details as part of a GraphQL workflow.",
+        "requiredInputs": [
+          "key"
+        ]
+      },
+      "field": "key",
+      "nearMiss": {
+        "producer": "GITHUB_CHECK_TEAM_PERMISSIONS_FOR_A_REPOSITORY",
+        "producerDescription": "Checks a team's permissions for a specific repository within an organization, including permissions inherited from parent teams.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "real_miss",
+      "notes": "GITHUB_LIST_CODES_OF_CONDUCT takes no inputs and its CodeOfConduct.key field is exactly this value -- verified directly (script check). Missed because 'key' is used as a leaf name by 58 different tools (well past GENERIC_THRESHOLD=25), so isGeneric() forces the score for ANY exact-name-only 'key' match down to 1, even this genuinely single-concept one. Collateral damage from a guard that's net-beneficial elsewhere (license keys, GPG keys, webhook keys all also called 'key')."
     },
     {
       "consumer": {
@@ -44,8 +111,70 @@
         "score": 1,
         "excludedAsCircular": false
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "true_negative",
+      "notes": "Caller-chosen rename target for the issue type."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_GET_A_PACKAGE_FOR_AN_ORGANIZATION",
+        "description": "Retrieves a specific package (by type and name) from an organization, if both the package and organization exist.",
+        "requiredInputs": [
+          "package_type",
+          "package_name",
+          "org"
+        ]
+      },
+      "field": "package_type",
+      "nearMiss": {
+        "producer": "GITHUB_LIST_PACKAGES_FOR_A_USER",
+        "producerDescription": "Lists packages for a specified GitHub user, filterable by package type and visibility.",
+        "score": 5,
+        "excludedAsCircular": true
+      },
+      "verdict": "true_negative",
+      "notes": "Verified catalog-wide (script check): every tool whose output could supply package_type also requires package_type as its own input -- GitHub's real Packages API always requires the caller to already know which registry (npm/docker/nuget/...) they're querying. The circular-producer exclusion is correctly protecting against a false relationship here, not causing a miss."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_CREATE_A_COMMIT_STATUS",
+        "description": "Sets a commit's status (e.g., error, failure, pending, success from CI/CD) for a given SHA; max 1000 statuses per SHA/context.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "sha",
+          "state"
+        ]
+      },
+      "field": "sha",
+      "nearMiss": {
+        "producer": "GITHUB_CLOSE_PULL_REQUEST",
+        "producerDescription": "Closes an open pull request without merging it. The pull request state is set to \"closed\" and it can be reopened later if needed. Use this action when you want to reject or abandon a pull request without merging the proposed changes into the base branch. You must have write access to the repository to close pull requests.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "ambiguous",
+      "notes": "Commit.sha (from GET_A_COMMIT/LIST_COMMITS) is a plausible real producer, but 'sha' as a leaf name is shared by Tree.sha, Blob.sha, GitTag.sha and others -- structurally different git objects that would be a genuinely wrong substitution for a commit-status sha. Suppressing all 'sha' matches trades a real loss here for correctly avoiding those. Not a clean single-concept case like run_attempt/node_id/hook_id."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_CREATE_A_CHECK_RUN",
+        "description": "Creates a new check run for a specific commit in a repository, used by external services to report status, detailed feedback, annotations, and images directly within the GitHub UI. NOTE: This endpoint requires GitHub App authentication - OAuth tokens and personal access tokens cannot create check runs.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "name",
+          "head_sha"
+        ]
+      },
+      "field": "name",
+      "nearMiss": {
+        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
+        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "true_negative",
+      "notes": "Caller-chosen name for the new check run."
     },
     {
       "consumer": {
@@ -65,71 +194,120 @@
         "score": 1,
         "excludedAsCircular": false
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "true_negative",
+      "notes": "Reaction 'content' is a caller-chosen emoji-type enum (+1/laugh/...), not discoverable data."
     },
     {
       "consumer": {
-        "slug": "GITHUB_REVIEW_PENDING_DEPLOYMENTS_FOR_A_WORKFLOW_RUN",
-        "description": "Approves or rejects pending deployments for a specific workflow run that are in a 'waiting' state within specified, configured environments.",
+        "slug": "GITHUB_COMPARE_TWO_COMMITS",
+        "description": "Compares two commit points (commits, branches, tags, or SHAs) within a repository or across forks, using `BASE...HEAD` or `OWNER:REF...OWNER:REF` format for the `basehead` parameter.",
         "requiredInputs": [
           "owner",
           "repo",
-          "run_id",
-          "environment_ids",
-          "state",
-          "comment"
+          "basehead"
         ]
       },
-      "field": "environment_ids",
+      "field": "basehead",
       "nearMiss": null,
-      "verdict": null,
-      "notes": ""
+      "verdict": "true_negative",
+      "notes": "'basehead' is a caller-composed compound string (BASE...HEAD); no producer would output it in this shape."
     },
     {
       "consumer": {
-        "slug": "GITHUB_UPDATE_A_DEPLOYMENT_BRANCH_POLICY",
-        "description": "Updates the name pattern of an existing deployment branch policy for a specific environment in a repository.",
+        "slug": "GITHUB_CREATE_A_COMMIT_COMMENT",
+        "description": "Creates a comment on a specific commit, or on a specific line if `path` and `position` are provided.",
         "requiredInputs": [
           "owner",
           "repo",
-          "environment_name",
-          "branch_policy_id",
-          "name"
+          "commit_sha",
+          "body"
         ]
       },
-      "field": "name",
-      "nearMiss": {
-        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
-        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_REVIEW_PENDING_DEPLOYMENTS_FOR_A_WORKFLOW_RUN",
-        "description": "Approves or rejects pending deployments for a specific workflow run that are in a 'waiting' state within specified, configured environments.",
-        "requiredInputs": [
-          "owner",
-          "repo",
-          "run_id",
-          "environment_ids",
-          "state",
-          "comment"
-        ]
-      },
-      "field": "comment",
+      "field": "body",
       "nearMiss": {
         "producer": "GITHUB_ADD_ASSIGNEES_TO_AN_ISSUE",
         "producerDescription": "Adds assignees to a GitHub issue. This action only adds users - it does not remove existing assignees. Changes are silently ignored if the authenticated user lacks push access to the repository.",
         "score": 1,
         "excludedAsCircular": false
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "true_negative",
+      "notes": "Free-text commit-comment body."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_DELETE_PACKAGE_VERSION_FOR_A_USER",
+        "description": "Permanently and irreversibly deletes a specific version of a package owned by the specified user.",
+        "requiredInputs": [
+          "package_type",
+          "package_name",
+          "username",
+          "package_version_id"
+        ]
+      },
+      "field": "package_type",
+      "nearMiss": {
+        "producer": "GITHUB_GET_A_PACKAGE_FOR_AN_ORGANIZATION",
+        "producerDescription": "Retrieves a specific package (by type and name) from an organization, if both the package and organization exist.",
+        "score": 5,
+        "excludedAsCircular": true
+      },
+      "verdict": "true_negative",
+      "notes": "Same package_type reasoning as entry 6."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_CREATE_A_COMMIT_STATUS",
+        "description": "Sets a commit's status (e.g., error, failure, pending, success from CI/CD) for a given SHA; max 1000 statuses per SHA/context.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "sha",
+          "state"
+        ]
+      },
+      "field": "state",
+      "nearMiss": {
+        "producer": "GITHUB_ADD_ASSIGNEES_TO_AN_ISSUE",
+        "producerDescription": "Adds assignees to a GitHub issue. This action only adds users - it does not remove existing assignees. Changes are silently ignored if the authenticated user lacks push access to the repository.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "true_negative",
+      "notes": "Caller-chosen commit-status enum (error/failure/pending/success)."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_CREATE_REACTION_FOR_AN_ISSUE",
+        "description": "Creates a reaction for a specified issue within a GitHub repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "issue_number",
+          "content"
+        ]
+      },
+      "field": "content",
+      "nearMiss": {
+        "producer": "GITHUB_ADD_ITEM_TO_USER_PROJECT",
+        "producerDescription": "Tool to add an issue or pull request to a user-owned GitHub project. Use when you need to add existing repository items to a project board.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "true_negative",
+      "notes": "Same reaction-content reasoning as entry 9."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_RUN_GRAPH_QL_RELAY_QUERY",
+        "description": "Tool to run a GitHub GraphQL relay query. The relay field is a workaround for re-exposing the root query object. Use when you need to access root query fields through the relay context.",
+        "requiredInputs": [
+          "query"
+        ]
+      },
+      "field": "query",
+      "nearMiss": null,
+      "verdict": "true_negative",
+      "notes": "Caller-authored GraphQL query string."
     },
     {
       "consumer": {
@@ -146,13 +324,13 @@
         "score": 1,
         "excludedAsCircular": false
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "true_negative",
+      "notes": "Caller-chosen new repository name."
     },
     {
       "consumer": {
-        "slug": "GITHUB_GET_COMMIT_STATUSES",
-        "description": "List all statuses for a commit reference (SHA, branch, or tag) in reverse chronological order. Use when you need to check CI/CD status results from various systems for a specific commit.",
+        "slug": "GITHUB_DOWNLOAD_A_REPOSITORY_ARCHIVE_TAR",
+        "description": "Downloads a repository's source code as a tarball (.tar.gz) archive for a specific Git reference, if the repository is accessible.",
         "requiredInputs": [
           "owner",
           "repo",
@@ -166,498 +344,8 @@
         "score": 1,
         "excludedAsCircular": false
       },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_REPLACE_REPO_ACCESS_ON_ORG_DEV_ENV_SECRET_SET",
-        "description": "Replaces the list of repositories that can access an organization-level Codespaces secret. This operation completely replaces the existing list of repositories with the provided list. The secret must already have its visibility set to 'selected' for this operation to succeed. Use this when you want to set an exact list of repositories that should have access. Prerequisites: - The organization must exist and you must have admin:org scope - The Codespaces secret must already exist in the organization - The secret's visibility must be set to 'selected' (not 'all' or 'private') Returns HTTP 204 No Content on success, 404 if secret/org not found, 409 if visibility is not 'selected'.",
-        "requiredInputs": [
-          "org",
-          "secret_name",
-          "selected_repository_ids"
-        ]
-      },
-      "field": "selected_repository_ids",
-      "nearMiss": null,
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_CREATE_OR_UPDATE_AN_ENVIRONMENT_SECRET",
-        "description": "Creates or updates an environment secret with an `encrypted_value` that was encrypted using the public key identified by `key_id` for the specified environment.",
-        "requiredInputs": [
-          "owner",
-          "repo",
-          "environment_name",
-          "secret_name",
-          "encrypted_value",
-          "key_id"
-        ]
-      },
-      "field": "encrypted_value",
-      "nearMiss": null,
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_REMOVE_SELECTED_REPO_FROM_ORG_VARIABLE",
-        "description": "Removes a repository's access to an organization variable that has 'selected' visibility. This endpoint removes a specific repository from an organization variable's access list. The variable must have its visibility set to 'selected' for this operation to work. Returns a 409 Conflict error if the variable visibility is not 'selected'.",
-        "requiredInputs": [
-          "org",
-          "name",
-          "repository_id"
-        ]
-      },
-      "field": "name",
-      "nearMiss": {
-        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
-        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_CREATE_A_REPOSITORY_PROJECT",
-        "description": "Creates a new GitHub Projects V2 project board linked to a specified repository. Note: This action uses GitHub's Projects V2 GraphQL API. The legacy Projects V1 REST API has been sunset by GitHub. The project is owned by the repository owner (user or organization) and linked to the specified repository.",
-        "requiredInputs": [
-          "owner",
-          "repo",
-          "name"
-        ]
-      },
-      "field": "name",
-      "nearMiss": {
-        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
-        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_TEST_REPOSITORY_WEBHOOK",
-        "description": "Triggers a simulated push event to test a repository's push webhook; a test event is only delivered if the webhook is subscribed to 'push' events, otherwise, it returns 204 No Content without sending a POST.",
-        "requiredInputs": [
-          "owner",
-          "repo",
-          "hook_id"
-        ]
-      },
-      "field": "hook_id",
-      "nearMiss": null,
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
-        "description": "Retrieves the full configuration, including subscribed events and delivery settings, for an existing organization webhook.",
-        "requiredInputs": [
-          "org",
-          "hook_id"
-        ]
-      },
-      "field": "hook_id",
-      "nearMiss": null,
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_SET_SELECTED_REPOS_FOR_ORG_VARIABLE",
-        "description": "Replaces the list of repositories that can access an organization-level variable; the variable's visibility must be 'selected'.",
-        "requiredInputs": [
-          "org",
-          "name",
-          "selected_repository_ids"
-        ]
-      },
-      "field": "name",
-      "nearMiss": {
-        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
-        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_DELETE_ORGANIZATION_VARIABLE",
-        "description": "Deletes a named GitHub Actions variable from a specified organization.",
-        "requiredInputs": [
-          "org",
-          "name"
-        ]
-      },
-      "field": "name",
-      "nearMiss": {
-        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
-        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_CREATE_A_CUSTOM_ORGANIZATION_ROLE",
-        "description": "Creates a custom role with defined permissions within a GitHub organization.",
-        "requiredInputs": [
-          "org",
-          "name",
-          "permissions"
-        ]
-      },
-      "field": "name",
-      "nearMiss": {
-        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
-        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_LIST_PACKAGE_VERSIONS_FOR_A_PACKAGE_OWNED_BY_A_USER",
-        "description": "Lists all versions of a public package owned by a specific GitHub user, identified by package type, package name, and username.",
-        "requiredInputs": [
-          "package_type",
-          "package_name",
-          "username"
-        ]
-      },
-      "field": "package_type",
-      "nearMiss": {
-        "producer": "GITHUB_GET_A_PACKAGE_FOR_AN_ORGANIZATION",
-        "producerDescription": "Retrieves a specific package (by type and name) from an organization, if both the package and organization exist.",
-        "score": 5,
-        "excludedAsCircular": true
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_UPDATE_A_DISCUSSION_COMMENT",
-        "description": "Updates the body of a comment in a team's discussion within an organization.",
-        "requiredInputs": [
-          "org",
-          "team_slug",
-          "discussion_number",
-          "comment_number",
-          "body"
-        ]
-      },
-      "field": "body",
-      "nearMiss": {
-        "producer": "GITHUB_ADD_ASSIGNEES_TO_AN_ISSUE",
-        "producerDescription": "Adds assignees to a GitHub issue. This action only adds users - it does not remove existing assignees. Changes are silently ignored if the authenticated user lacks push access to the repository.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_DELETE_A_FILE",
-        "description": "Deletes a file by path from a GitHub repository. The file's blob SHA is automatically fetched if not provided.",
-        "requiredInputs": [
-          "owner",
-          "repo",
-          "path",
-          "message"
-        ]
-      },
-      "field": "path",
-      "nearMiss": {
-        "producer": "GITHUB_ABORT_REPOSITORY_MIGRATION",
-        "producerDescription": "Tool to abort a repository migration that is queued or in progress. Use when you need to cancel an ongoing migration operation.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_CREATE_A_COMMIT",
-        "description": "Creates a new commit in a GitHub repository; the `tree` SHA and any `parents` SHAs must already exist in the repository.",
-        "requiredInputs": [
-          "owner",
-          "repo",
-          "message",
-          "tree"
-        ]
-      },
-      "field": "tree",
-      "nearMiss": null,
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_UPDATE_GIT_LFS_PREFERENCE",
-        "description": "Sets the Git Large File Storage (LFS) preference for a repository during a source import. NOTE: This endpoint has been deprecated by GitHub as of April 12, 2024, and is no longer available. The Source Imports REST API has been retired due to very low usage levels. Please use the GitHub Importer tool at https://github.com/new/import for repository imports.",
-        "requiredInputs": [
-          "owner",
-          "repo",
-          "use_lfs"
-        ]
-      },
-      "field": "use_lfs",
-      "nearMiss": null,
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_CREATE_DRAFT_ITEM_FOR_USER_PROJECT",
-        "description": "Creates a draft issue item in a user-owned GitHub ProjectsV2. Use when you need to add a new draft item to track ideas or tasks in a user's project.",
-        "requiredInputs": [
-          "username",
-          "project_number",
-          "title"
-        ]
-      },
-      "field": "title",
-      "nearMiss": {
-        "producer": "GITHUB_ADD_ASSIGNEES_TO_AN_ISSUE",
-        "producerDescription": "Adds assignees to a GitHub issue. This action only adds users - it does not remove existing assignees. Changes are silently ignored if the authenticated user lacks push access to the repository.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_LOOKUP_NODES_BY_IDS",
-        "description": "Tool to lookup GitHub nodes by their global node IDs. Use when you need to retrieve multiple objects by their IDs in a single batch query.",
-        "requiredInputs": [
-          "ids"
-        ]
-      },
-      "field": "ids",
-      "nearMiss": null,
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_RESET_A_TOKEN",
-        "description": "Invalidates the provided OAuth `access_token` and generates a new one for the GitHub OAuth App identified by `client_id`. Used for token rotation when a token may be compromised or for regular security maintenance. Note: This endpoint requires the OAuth App owner's credentials (client_id/client_secret for Basic Auth).",
-        "requiredInputs": [
-          "client_id",
-          "access_token"
-        ]
-      },
-      "field": "access_token",
-      "nearMiss": {
-        "producer": "GITHUB_CREATE_A_SCOPED_ACCESS_TOKEN",
-        "producerDescription": "Exchanges a user-to-server token for a new, fine-grained scoped access token for a GitHub App, requiring `client_id`, `access_token`, either `target` or `target_id`, and at least one permission; for repository-specific scoping, provide either `repositories` (names) or `repository_ids` (IDs), but not both.",
-        "score": 5,
-        "excludedAsCircular": true
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_GET_GITHUB_PAGES_BUILD",
-        "description": "Retrieves detailed information about a specific GitHub Pages build for a repository, which must have GitHub Pages enabled.",
-        "requiredInputs": [
-          "owner",
-          "repo",
-          "build_id"
-        ]
-      },
-      "field": "build_id",
-      "nearMiss": null,
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_GET_REPOSITORY_CONTENT",
-        "description": "Retrieves a file's Base64 encoded content or lists a directory's contents from a GitHub repository.",
-        "requiredInputs": [
-          "owner",
-          "repo",
-          "path"
-        ]
-      },
-      "field": "path",
-      "nearMiss": {
-        "producer": "GITHUB_ABORT_REPOSITORY_MIGRATION",
-        "producerDescription": "Tool to abort a repository migration that is queued or in progress. Use when you need to cancel an ongoing migration operation.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_LIST_PACKAGES_FOR_AN_ORGANIZATION",
-        "description": "Lists GitHub Packages for an organization, noting specific interpretations for package_type and visibility parameters.",
-        "requiredInputs": [
-          "package_type",
-          "org"
-        ]
-      },
-      "field": "package_type",
-      "nearMiss": {
-        "producer": "GITHUB_GET_A_PACKAGE_FOR_AN_ORGANIZATION",
-        "producerDescription": "Retrieves a specific package (by type and name) from an organization, if both the package and organization exist.",
-        "score": 5,
-        "excludedAsCircular": true
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_GET_GRAPHQL_NODE",
-        "description": "Tool to fetch any GitHub object by its global node ID. Use when you have a node_id and need to retrieve the corresponding object details.",
-        "requiredInputs": [
-          "id"
-        ]
-      },
-      "field": "id",
-      "nearMiss": {
-        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
-        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_CREATE_A_LABEL",
-        "description": "Creates a new label in a specified GitHub repository, provided the repository exists and the user has write permissions.",
-        "requiredInputs": [
-          "owner",
-          "repo",
-          "name",
-          "color"
-        ]
-      },
-      "field": "color",
-      "nearMiss": {
-        "producer": "GITHUB_ADD_ASSIGNEES_TO_AN_ISSUE",
-        "producerDescription": "Adds assignees to a GitHub issue. This action only adds users - it does not remove existing assignees. Changes are silently ignored if the authenticated user lacks push access to the repository.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_RESTORE_PACKAGE_VERSION_FOR_A_USER",
-        "description": "Restores a specific, user-owned package version if it was deleted within the last 30 days and its original namespace and version name are still available.",
-        "requiredInputs": [
-          "package_type",
-          "package_name",
-          "username",
-          "package_version_id"
-        ]
-      },
-      "field": "package_type",
-      "nearMiss": {
-        "producer": "GITHUB_GET_A_PACKAGE_FOR_AN_ORGANIZATION",
-        "producerDescription": "Retrieves a specific package (by type and name) from an organization, if both the package and organization exist.",
-        "score": 5,
-        "excludedAsCircular": true
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_SEARCH_TOPICS",
-        "description": "Finds topics on GitHub using keywords and qualifiers with GitHub's search syntax, supporting pagination.",
-        "requiredInputs": [
-          "q"
-        ]
-      },
-      "field": "q",
-      "nearMiss": null,
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_CREATE_AN_ORGANIZATION_REPOSITORY",
-        "description": "Creates a new repository within a specified GitHub organization, with options for detailed configuration including visibility, features, merge strategies, initial commit, and templates.",
-        "requiredInputs": [
-          "org",
-          "name"
-        ]
-      },
-      "field": "name",
-      "nearMiss": {
-        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
-        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_GET_A_WORKFLOW_RUN_ATTEMPT",
-        "description": "Retrieves detailed information for a specific attempt of a workflow run in a GitHub repository, including its status, conclusion, and timings.",
-        "requiredInputs": [
-          "owner",
-          "repo",
-          "run_id",
-          "attempt_number"
-        ]
-      },
-      "field": "attempt_number",
-      "nearMiss": null,
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_CREATE_REACTION_FOR_A_RELEASE",
-        "description": "Creates an emoji reaction for a specific, existing release in a GitHub repository.",
-        "requiredInputs": [
-          "owner",
-          "repo",
-          "release_id",
-          "content"
-        ]
-      },
-      "field": "content",
-      "nearMiss": {
-        "producer": "GITHUB_ADD_ITEM_TO_USER_PROJECT",
-        "producerDescription": "Tool to add an issue or pull request to a user-owned GitHub project. Use when you need to add existing repository items to a project board.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
+      "verdict": "ambiguous",
+      "notes": "Same 'sha'-style generic-identifier tension as entry 7, for 'ref': a real, fairly consistent concept (a branch/tag/commit-ish string) but the leaf name is shared broadly enough across different reference kinds that GENERIC_THRESHOLD suppression is a defensible, not clearly wrong, tradeoff."
     },
     {
       "consumer": {
@@ -670,59 +358,20 @@
           "labels"
         ]
       },
-      "field": "name",
+      "field": "labels",
       "nearMiss": {
-        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
-        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
+        "producer": "GITHUB_CLOSE_PULL_REQUEST",
+        "producerDescription": "Closes an open pull request without merging it. The pull request state is set to \"closed\" and it can be reopened later if needed. Use this action when you want to reject or abandon a pull request without merging the proposed changes into the base branch. You must have write access to the repository to close pull requests.",
         "score": 1,
         "excludedAsCircular": false
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "true_negative",
+      "notes": "Arbitrary caller-defined runner label strings."
     },
     {
       "consumer": {
-        "slug": "GITHUB_GET_LICENSE_GRAPH_QL",
-        "description": "Tool to look up an open source license by its SPDX ID using GitHub's GraphQL API. Use when you need to fetch license details for compliance tracking or repository setup.",
-        "requiredInputs": [
-          "key"
-        ]
-      },
-      "field": "key",
-      "nearMiss": {
-        "producer": "GITHUB_CHECK_TEAM_PERMISSIONS_FOR_A_REPOSITORY",
-        "producerDescription": "Checks a team's permissions for a specific repository within an organization, including permissions inherited from parent teams.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_UPDATE_A_CODE_SCANNING_ALERT",
-        "description": "Updates a specific code scanning alert in a GitHub repository, primarily to change its state (e.g., 'open' or 'dismissed').",
-        "requiredInputs": [
-          "owner",
-          "repo",
-          "alert_number",
-          "state"
-        ]
-      },
-      "field": "state",
-      "nearMiss": {
-        "producer": "GITHUB_ADD_ASSIGNEES_TO_AN_ISSUE",
-        "producerDescription": "Adds assignees to a GitHub issue. This action only adds users - it does not remove existing assignees. Changes are silently ignored if the authenticated user lacks push access to the repository.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_DOWNLOAD_A_REPOSITORY_ARCHIVE_ZIP",
-        "description": "Downloads a repository's source code as a ZIP archive for a specific Git reference (branch, tag, or commit SHA). IMPORTANT SIZE LIMITATION: This action may fail with 'payload too large' errors for large repositories due to platform size restrictions. If you encounter size limit issues, consider these alternatives: - Use GITHUB_GET_REPOSITORY_CONTENT to fetch specific files or directories (also lists directory contents) - Clone the repository using git if you need the full codebase Best suited for: small to medium repositories, downloading specific tagged releases, or quick code inspection.",
+        "slug": "GITHUB_GET_A_REFERENCE",
+        "description": "Retrieves a specific Git reference (e.g., a branch, tag, or fully qualified like 'heads/main') from a GitHub repository. The reference must exist in the repository; use 'list_matching_references' first if unsure what references are available.",
         "requiredInputs": [
           "owner",
           "repo",
@@ -736,50 +385,30 @@
         "score": 1,
         "excludedAsCircular": false
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "ambiguous",
+      "notes": "Same 'ref' reasoning as entry 17."
     },
     {
       "consumer": {
-        "slug": "GITHUB_UPDATE_AN_ENVIRONMENT_VARIABLE",
-        "description": "Updates an existing environment variable's name and/or value in a specific GitHub repository environment; requires providing either a new name or a new value.",
+        "slug": "GITHUB_CREATE_JIT_RUNNER_CONFIG",
+        "description": "Generates a temporary Just-In-Time (JIT) configuration for a new self-hosted GitHub Actions runner for a repository; any specified non-default `runner_group_id` must be an existing runner group accessible by the repository.",
         "requiredInputs": [
           "owner",
           "repo",
           "name",
-          "environment_name"
+          "runner_group_id",
+          "labels"
         ]
       },
-      "field": "name",
+      "field": "labels",
       "nearMiss": {
-        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
-        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
+        "producer": "GITHUB_CLOSE_PULL_REQUEST",
+        "producerDescription": "Closes an open pull request without merging it. The pull request state is set to \"closed\" and it can be reopened later if needed. Use this action when you want to reject or abandon a pull request without merging the proposed changes into the base branch. You must have write access to the repository to close pull requests.",
         "score": 1,
         "excludedAsCircular": false
       },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_CREATE_AN_ORGANIZATION_VARIABLE",
-        "description": "Creates a new, uniquely named GitHub Actions variable for an organization, with configurable repository access visibility (all, private, or selected).",
-        "requiredInputs": [
-          "org",
-          "name",
-          "value",
-          "visibility"
-        ]
-      },
-      "field": "visibility",
-      "nearMiss": {
-        "producer": "GITHUB_ADD_EMAIL_ADDRESS_FOR_AUTHENTICATED_USER",
-        "producerDescription": "Adds one or more email addresses (which will be initially unverified) to the authenticated user's GitHub account; use this to associate new emails, noting an email verified for another account will error, while an existing email for the current user is accepted.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
+      "verdict": "true_negative",
+      "notes": "Same arbitrary runner-label reasoning as entry 18."
     },
     {
       "consumer": {
@@ -799,8 +428,242 @@
         "score": 1,
         "excludedAsCircular": false
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "true_negative",
+      "notes": "Free-text commit message the caller authors."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_GET_GITIGNORE_TEMPLATE",
+        "description": "Retrieves a specific .gitignore template from GitHub by its name, which must be an existing template in GitHub's collection.",
+        "requiredInputs": [
+          "name"
+        ]
+      },
+      "field": "name",
+      "nearMiss": {
+        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
+        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "true_negative",
+      "notes": "gitignore template name is chosen from GitHub's fixed, well-known template catalog (Node, Python, ...), not looked up dynamically in typical usage."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_GET_A_WEBHOOK_DELIVERY_FOR_AN_ORGANIZATION_WEBHOOK",
+        "description": "Returns detailed information for a specific delivery attempt of a webhook configured for the specified GitHub organization.",
+        "requiredInputs": [
+          "org",
+          "hook_id",
+          "delivery_id"
+        ]
+      },
+      "field": "hook_id",
+      "nearMiss": null,
+      "verdict": "real_miss",
+      "notes": "GITHUB_LIST_ORGANIZATION_WEBHOOKS's Webhook.id is exactly this value (verified the repo-scoped equivalent directly: GITHUB_LIST_REPOSITORY_WEBHOOKS has a non-circular Webhook.id field). Missed because the consumer's field is abbreviated 'hook_id' while the type is named 'Webhook' -- 'hook' is not a token of 'webhook', so the type-name check fails even though it's the same concept."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_GET_REPOSITORY_OWNER",
+        "description": "Tool to lookup a repository owner (User or Organization) by login using GitHub's GraphQL API. Use when you need to determine whether a login is a user or organization and retrieve basic profile information.",
+        "requiredInputs": [
+          "login"
+        ]
+      },
+      "field": "login",
+      "nearMiss": {
+        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
+        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "real_miss",
+      "notes": "'login' is a GitHub account's login name -- unlike 'key'/'id'/'name', it consistently means the same one thing everywhere it appears (SimpleUser.login), so suppressing it as generic-noise loses a genuinely valid, reusable identifier. Same collateral-damage pattern as entry 4's 'key', for a token that's arguably even less ambiguous."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_LIST_ORG_PACKAGE_VERSIONS",
+        "description": "Lists all versions for a specified package, if it exists and is owned by the given GitHub organization.",
+        "requiredInputs": [
+          "package_type",
+          "package_name",
+          "org"
+        ]
+      },
+      "field": "package_type",
+      "nearMiss": {
+        "producer": "GITHUB_GET_A_PACKAGE_FOR_AN_ORGANIZATION",
+        "producerDescription": "Retrieves a specific package (by type and name) from an organization, if both the package and organization exist.",
+        "score": 5,
+        "excludedAsCircular": true
+      },
+      "verdict": "true_negative",
+      "notes": "Same package_type reasoning as entry 6."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_SET_REPO_RUNNER_LABELS",
+        "description": "Replaces all custom labels for a specific self-hosted runner in a repository; an empty list for `labels` removes all existing custom labels.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "runner_id",
+          "labels"
+        ]
+      },
+      "field": "labels",
+      "nearMiss": {
+        "producer": "GITHUB_CLOSE_PULL_REQUEST",
+        "producerDescription": "Closes an open pull request without merging it. The pull request state is set to \"closed\" and it can be reopened later if needed. Use this action when you want to reject or abandon a pull request without merging the proposed changes into the base branch. You must have write access to the repository to close pull requests.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "true_negative",
+      "notes": "Same arbitrary runner-label reasoning as entry 18."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_SEARCH_CODE",
+        "description": "Searches code file contents and paths on the default branch of GitHub repositories using a query string; searches only files under 384KB, returns max 1000 results by best match, and is optimized for precision.",
+        "requiredInputs": [
+          "q"
+        ]
+      },
+      "field": "q",
+      "nearMiss": null,
+      "verdict": "true_negative",
+      "notes": "Caller-authored code-search query string."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_COMMIT_MULTIPLE_FILES",
+        "description": "Tool to atomically create, update, or delete multiple files in a GitHub repository as a single commit. Uses Git Data APIs to avoid SHA mismatch conflicts that occur with the Contents API when multiple files are modified in parallel. Use when you need to make multi-file changes reliably. BRANCH CREATION: When committing to a new branch (e.g., 'fix/my-fix' or 'feature/new-feature'), you MUST provide 'base_branch' (typically 'main' or 'master') to create the branch from. If the branch already exists, base_branch is not needed. This action handles race conditions automatically: if the branch is updated by another commit between fetching the HEAD and updating the reference (resulting in a 422 'not a fast forward' error), the action will retry by refetching the HEAD and rebasing changes. Use max_retries to control this behavior.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch",
+          "message"
+        ]
+      },
+      "field": "message",
+      "nearMiss": {
+        "producer": "GITHUB_ABORT_REPOSITORY_MIGRATION",
+        "producerDescription": "Tool to abort a repository migration that is queued or in progress. Use when you need to cancel an ongoing migration operation.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "true_negative",
+      "notes": "Free-text commit message for a multi-file commit."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_REPLACE_ALL_REPOSITORY_TOPICS",
+        "description": "Replaces all topics of a repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "names"
+        ]
+      },
+      "field": "names",
+      "nearMiss": {
+        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
+        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "true_negative",
+      "notes": "Caller-chosen list of repository topic names."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_GET_A_WEBHOOK_CONFIGURATION_FOR_AN_ORGANIZATION",
+        "description": "Retrieves the configuration for a specific webhook associated with a GitHub organization.",
+        "requiredInputs": [
+          "org",
+          "hook_id"
+        ]
+      },
+      "field": "hook_id",
+      "nearMiss": null,
+      "verdict": "real_miss",
+      "notes": "Same hook_id/Webhook.id reasoning as entry 23, org-scoped via GITHUB_LIST_ORGANIZATION_WEBHOOKS."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_SEARCH_COMMITS",
+        "description": "Finds commits on GitHub using a query string (q) supporting keywords and qualifiers, with options for sorting and pagination.",
+        "requiredInputs": [
+          "q"
+        ]
+      },
+      "field": "q",
+      "nearMiss": null,
+      "verdict": "true_negative",
+      "notes": "Caller-authored commit-search query string."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_CREATE_AN_ORGANIZATION_REPOSITORY",
+        "description": "Creates a new repository within a specified GitHub organization, with options for detailed configuration including visibility, features, merge strategies, initial commit, and templates.",
+        "requiredInputs": [
+          "org",
+          "name"
+        ]
+      },
+      "field": "name",
+      "nearMiss": {
+        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
+        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "true_negative",
+      "notes": "Caller-chosen new repository name."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_CREATE_VIEW_FOR_USER_PROJECT",
+        "description": "Tool to create a new view in a user-owned GitHub project (Projects V2). Use when you need to add a customized view with specific layout, filters, and visible fields to organize project items. Note: This action works with GitHub Projects V2. The view can be configured with different layouts (table, board, roadmap) and optional filters. The visible_fields parameter is not applicable to roadmap layouts.",
+        "requiredInputs": [
+          "user_id",
+          "project_number",
+          "name",
+          "layout"
+        ]
+      },
+      "field": "name",
+      "nearMiss": {
+        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
+        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "true_negative",
+      "notes": "Caller-chosen name for a new project view."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_RESTORE_PACKAGE_VERSION_FOR_A_USER",
+        "description": "Restores a specific, user-owned package version if it was deleted within the last 30 days and its original namespace and version name are still available.",
+        "requiredInputs": [
+          "package_type",
+          "package_name",
+          "username",
+          "package_version_id"
+        ]
+      },
+      "field": "package_type",
+      "nearMiss": {
+        "producer": "GITHUB_GET_A_PACKAGE_FOR_AN_ORGANIZATION",
+        "producerDescription": "Retrieves a specific package (by type and name) from an organization, if both the package and organization exist.",
+        "score": 5,
+        "excludedAsCircular": true
+      },
+      "verdict": "true_negative",
+      "notes": "Same package_type reasoning as entry 6."
     },
     {
       "consumer": {
@@ -819,51 +682,15 @@
         "score": 1,
         "excludedAsCircular": false
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "true_negative",
+      "notes": "Caller-chosen enum (Issue vs PullRequest) for the project-item type being added."
     },
     {
       "consumer": {
-        "slug": "GITHUB_LIST_DELIVERIES_FOR_AN_ORGANIZATION_WEBHOOK",
-        "description": "Retrieves a list of webhook deliveries for a specific webhook in an organization, allowing inspection of delivery history and details.",
+        "slug": "GITHUB_UPDATE_AN_ORGANIZATION_VARIABLE",
+        "description": "Updates an existing GitHub Actions organization variable's name, value, or visibility (`all`, `private`, `selected`), requiring `selected_repository_ids` with valid repository IDs if visibility is `selected`.",
         "requiredInputs": [
           "org",
-          "hook_id"
-        ]
-      },
-      "field": "hook_id",
-      "nearMiss": null,
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_CREATE_REACTION_FOR_A_TEAM_DISCUSSION",
-        "description": "Creates a reaction for a team discussion within a GitHub organization.",
-        "requiredInputs": [
-          "org",
-          "team_slug",
-          "discussion_number",
-          "content"
-        ]
-      },
-      "field": "content",
-      "nearMiss": {
-        "producer": "GITHUB_ADD_ITEM_TO_USER_PROJECT",
-        "producerDescription": "Tool to add an issue or pull request to a user-owned GitHub project. Use when you need to add existing repository items to a project board.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_DELETE_A_REPOSITORY_VARIABLE",
-        "description": "Deletes a named variable (e.g., for GitHub Actions workflows) from a repository; the repository and the variable must already exist.",
-        "requiredInputs": [
-          "owner",
-          "repo",
           "name"
         ]
       },
@@ -874,65 +701,33 @@
         "score": 1,
         "excludedAsCircular": false
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "true_negative",
+      "notes": "The org variable's own name is caller-specified when creating/renaming it."
     },
     {
       "consumer": {
-        "slug": "GITHUB_GET_CODE_OF_CONDUCT",
-        "description": "Retrieves the full details of a specific GitHub code of conduct using its unique key.",
-        "requiredInputs": [
-          "key"
-        ]
-      },
-      "field": "key",
-      "nearMiss": {
-        "producer": "GITHUB_CHECK_TEAM_PERMISSIONS_FOR_A_REPOSITORY",
-        "producerDescription": "Checks a team's permissions for a specific repository within an organization, including permissions inherited from parent teams.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_REVIEW_ACCESS_WITH_PERSONAL_TOKEN",
-        "description": "Approves or denies a pending fine-grained personal access token request for organization resources; must be performed by a GitHub App.",
+        "slug": "GITHUB_UPDATE_RESOURCE_ACCESS_WITH_TOKENS",
+        "description": "Revokes organization access for the personal access tokens identified by `pat_ids`; this action must be performed by a GitHub App, and `pat_ids` must be valid and associated with the organization. AUTHENTICATION REQUIREMENT: This endpoint requires GitHub App authentication with 'Personal access tokens' organization permissions (write). Standard personal access tokens CANNOT use this endpoint. The GitHub App must also have access to the organization.",
         "requiredInputs": [
           "org",
-          "pat_request_id",
-          "action"
+          "action",
+          "pat_ids"
         ]
       },
-      "field": "pat_request_id",
+      "field": "pat_ids",
       "nearMiss": null,
-      "verdict": null,
-      "notes": ""
+      "verdict": "real_miss",
+      "notes": "Same underlying relationship as pat_id (entry 40): GITHUB_LIST_ORG_RESOURCE_ACCESS_TOKENS's Token.id/Token.token_id fields are exactly the ids this action revokes access for. Missed for the same 'pat' vs 'Token'/'token_id' naming mismatch -- confirmed directly (script check of the tool's own output fields), and the catalog's own field description for the sibling action even says so explicitly: 'Obtain this from the GITHUB_LIST_ORG_RESOURCE_ACCESS_TOKENS action.'"
     },
     {
       "consumer": {
-        "slug": "GITHUB_SET_OIDC_SUBJECT_CLAIM_TEMPLATE",
-        "description": "Sets the OpenID Connect (OIDC) subject claim template for a GitHub repository, allowing use of the default template or a custom one defined by `include_claim_keys` if `use_default` is `false`.",
-        "requiredInputs": [
-          "owner",
-          "repo",
-          "use_default"
-        ]
-      },
-      "field": "use_default",
-      "nearMiss": null,
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_DELETE_ORG_PACKAGE",
-        "description": "Deletes a specific package in an organization; cannot delete public packages with over 5,000 downloads.",
+        "slug": "GITHUB_GET_A_PACKAGE_VERSION_FOR_AN_ORGANIZATION",
+        "description": "Retrieves detailed information for a specific version of a package within an organization.",
         "requiredInputs": [
           "package_type",
           "package_name",
-          "org"
+          "org",
+          "package_version_id"
         ]
       },
       "field": "package_type",
@@ -942,46 +737,74 @@
         "score": 5,
         "excludedAsCircular": true
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "true_negative",
+      "notes": "Same package_type reasoning as entry 6."
     },
     {
       "consumer": {
-        "slug": "GITHUB_CREATE_INFERENCE_CHAT_COMPLETIONS",
-        "description": "Tool to create chat completions using GitHub Models inference API. Use when you need to generate AI-powered text responses using models like GPT-4, Claude, or Llama through GitHub's inference endpoint.",
+        "slug": "GITHUB_GET_REPOSITORY_WEBHOOK_DELIVERY",
+        "description": "Retrieves a specific delivery for a repository webhook, identified by its `hook_id` and `delivery_id`.",
         "requiredInputs": [
-          "model",
-          "messages"
+          "owner",
+          "repo",
+          "hook_id",
+          "delivery_id"
         ]
       },
-      "field": "messages",
-      "nearMiss": {
-        "producer": "GITHUB_ABORT_REPOSITORY_MIGRATION",
-        "producerDescription": "Tool to abort a repository migration that is queued or in progress. Use when you need to cancel an ongoing migration operation.",
-        "score": 1,
-        "excludedAsCircular": false
-      },
-      "verdict": null,
-      "notes": ""
+      "field": "hook_id",
+      "nearMiss": null,
+      "verdict": "real_miss",
+      "notes": "Same hook_id/Webhook.id reasoning as entry 23, repo-scoped via GITHUB_LIST_REPOSITORY_WEBHOOKS (verified directly: non-circular, Webhook.id present)."
     },
     {
       "consumer": {
-        "slug": "GITHUB_UPDATE_SUBSCRIPTION",
-        "description": "Tool to update notification subscription state for issues, pull requests, or discussions. Use when you need to subscribe, unsubscribe, or ignore notifications for a specific GitHub item.",
+        "slug": "GITHUB_LIST_TOKEN_ACCESS_REPOSITORIES",
+        "description": "Lists repositories in an organization that a fine-grained personal access token has access to. Requires organization admin permissions or 'Personal access tokens' organization read permission. Only GitHub Apps can use this endpoint.",
         "requiredInputs": [
-          "subscribableId",
-          "state"
+          "org",
+          "pat_id"
         ]
       },
-      "field": "state",
+      "field": "pat_id",
+      "nearMiss": null,
+      "verdict": "real_miss",
+      "notes": "GITHUB_LIST_ORG_RESOURCE_ACCESS_TOKENS's Token.id / Token.token_id fields are exactly this value -- verified directly, and the catalog's own description of this very consumer says 'You can obtain this ID from the list_org_resource_access_tokens action.' Missed purely because the consumer's field is abbreviated 'pat_id' while the producer's type is named 'Token', not 'PersonalAccessToken' or similar -- 'pat' shares no token with 'token' under this tokenizer."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_UPLOAD_SARIF_ANALYSIS",
+        "description": "Uploads a gzipped and Base64 encoded SARIF file to a GitHub repository for a specific commit and reference; use `checkout_uri` if SARIF paths are absolute.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "commit_sha",
+          "ref",
+          "sarif"
+        ]
+      },
+      "field": "sarif",
+      "nearMiss": null,
+      "verdict": "true_negative",
+      "notes": "SARIF payload is generated client-side by a scanning tool and gzipped+base64 encoded by the caller; no GitHub endpoint returns one to re-upload."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_LIST_SELECTED_REPOS_ORG_VARIABLE",
+        "description": "Lists repositories in an organization that can access a specific organization variable; supports pagination and returns an empty list if no repositories have been granted access. Note: This endpoint only works for variables with visibility set to 'selected' - attempting to use it on variables with 'all' or 'private' visibility will result in a 409 Conflict error.",
+        "requiredInputs": [
+          "org",
+          "name"
+        ]
+      },
+      "field": "name",
       "nearMiss": {
-        "producer": "GITHUB_ADD_ASSIGNEES_TO_AN_ISSUE",
-        "producerDescription": "Adds assignees to a GitHub issue. This action only adds users - it does not remove existing assignees. Changes are silently ignored if the authenticated user lacks push access to the repository.",
+        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
+        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
         "score": 1,
         "excludedAsCircular": false
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "true_negative",
+      "notes": "The org variable's own name, caller-specified."
     },
     {
       "consumer": {
@@ -998,31 +821,204 @@
         "score": 1,
         "excludedAsCircular": false
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "true_negative",
+      "notes": "Caller-chosen name for a new user-owned project."
     },
     {
       "consumer": {
-        "slug": "GITHUB_SEARCH_LABELS",
-        "description": "Searches for labels within a GitHub repository by keywords in their names or descriptions.",
+        "slug": "GITHUB_CREATE_USER_LIST",
+        "description": "Tool to create a new user list on GitHub. Use when you need to organize and group GitHub users for easier tracking and management.",
         "requiredInputs": [
-          "repository_id",
-          "q"
+          "name"
         ]
       },
-      "field": "q",
-      "nearMiss": null,
-      "verdict": null,
-      "notes": ""
+      "field": "name",
+      "nearMiss": {
+        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
+        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "true_negative",
+      "notes": "Caller-chosen name for a new user list."
     },
     {
       "consumer": {
-        "slug": "GITHUB_GET_A_PACKAGE_VERSION_FOR_THE_AUTHENTICATED_USER",
-        "description": "Retrieves detailed information for an existing specific package version associated with the authenticated user, identified by its type, name, and version ID.",
+        "slug": "GITHUB_GET_A_COMMIT",
+        "description": "Retrieves a specific commit from a repository by its owner, name, and a valid commit reference (SHA, branch, or tag), supporting pagination for large diffs.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "ref"
+        ]
+      },
+      "field": "ref",
+      "nearMiss": {
+        "producer": "GITHUB_CLEAR_REPOSITORY_CACHE_BY_KEY",
+        "producerDescription": "Deletes GitHub Actions caches from a repository matching a specific `key` and an optional Git `ref`, used to manage storage or clear outdated/corrupted caches; the action succeeds even if no matching caches are found to delete.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "ambiguous",
+      "notes": "Same 'ref' reasoning as entry 17."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_RENAME_A_BRANCH",
+        "description": "Renames an existing branch in a GitHub repository; the new name must be unique and adhere to GitHub's naming conventions, and the current branch name cannot contain wildcard characters.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch",
+          "new_name"
+        ]
+      },
+      "field": "new_name",
+      "nearMiss": null,
+      "verdict": "true_negative",
+      "notes": "Caller-chosen new branch name."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_CREATE_A_REFERENCE",
+        "description": "Creates a NEW Git reference (branch or tag) in a repository. IMPORTANT: This action ONLY creates NEW references - if the reference already exists, it will fail with a 422 'Reference already exists' error. To update an existing reference, use the 'Update a reference' (GITHUB_UPDATE_A_REFERENCE) action instead. The repository must not be empty prior to this operation.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "ref",
+          "sha"
+        ]
+      },
+      "field": "sha",
+      "nearMiss": {
+        "producer": "GITHUB_CLOSE_PULL_REQUEST",
+        "producerDescription": "Closes an open pull request without merging it. The pull request state is set to \"closed\" and it can be reopened later if needed. Use this action when you want to reject or abandon a pull request without merging the proposed changes into the base branch. You must have write access to the repository to close pull requests.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "ambiguous",
+      "notes": "Same 'sha' reasoning as entry 7."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_UPDATE_A_REPOSITORY_WEBHOOK",
+        "description": "Updates the URL, content type, secret, SSL verification, events, or active status for an existing repository webhook, specified by `owner`, `repo`, and `hook_id`.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "hook_id"
+        ]
+      },
+      "field": "hook_id",
+      "nearMiss": null,
+      "verdict": "real_miss",
+      "notes": "Same hook_id/Webhook.id reasoning as entry 23, repo-scoped."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_CREATE_A_TAG_OBJECT",
+        "description": "Creates an annotated Git tag object in a repository, pointing to an existing Git object (commit, tree, or blob) defined by its SHA and ensuring the `type` field correctly specifies the object's type.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "tag",
+          "message",
+          "object",
+          "type"
+        ]
+      },
+      "field": "message",
+      "nearMiss": {
+        "producer": "GITHUB_ABORT_REPOSITORY_MIGRATION",
+        "producerDescription": "Tool to abort a repository migration that is queued or in progress. Use when you need to cancel an ongoing migration operation.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "true_negative",
+      "notes": "Free-text annotated-tag message."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_DELETE_A_REFERENCE",
+        "description": "Deletes a Git reference from a repository; 'ref' must be fully qualified (e.g., 'refs/heads/branch' or 'refs/tags/tag').",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "ref"
+        ]
+      },
+      "field": "ref",
+      "nearMiss": {
+        "producer": "GITHUB_CLEAR_REPOSITORY_CACHE_BY_KEY",
+        "producerDescription": "Deletes GitHub Actions caches from a repository matching a specific `key` and an optional Git `ref`, used to manage storage or clear outdated/corrupted caches; the action succeeds even if no matching caches are found to delete.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "ambiguous",
+      "notes": "Same 'ref' reasoning as entry 17."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_GET_GITHUB_PAGES_BUILD",
+        "description": "Retrieves detailed information about a specific GitHub Pages build for a repository, which must have GitHub Pages enabled.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "build_id"
+        ]
+      },
+      "field": "build_id",
+      "nearMiss": null,
+      "verdict": "true_negative",
+      "notes": "Verified directly: PagesBuildData (from GET_LATEST_PAGES_BUILD) has no 'id' field at all in this catalog -- consistent with GitHub's real public Pages API, which doesn't expose enumerable build ids outside internal/deploy-status contexts. A genuine catalog gap, not a heuristic miss."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_CREATE_OR_UPDATE_AN_ENVIRONMENT_SECRET",
+        "description": "Creates or updates an environment secret with an `encrypted_value` that was encrypted using the public key identified by `key_id` for the specified environment.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "environment_name",
+          "secret_name",
+          "encrypted_value",
+          "key_id"
+        ]
+      },
+      "field": "encrypted_value",
+      "nearMiss": null,
+      "verdict": "true_negative",
+      "notes": "encrypted_value is a libsodium-sealed-box value the caller computes locally using the environment's public key; GitHub never returns it from any endpoint by design."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_CREATE_A_REFERENCE",
+        "description": "Creates a NEW Git reference (branch or tag) in a repository. IMPORTANT: This action ONLY creates NEW references - if the reference already exists, it will fail with a 422 'Reference already exists' error. To update an existing reference, use the 'Update a reference' (GITHUB_UPDATE_A_REFERENCE) action instead. The repository must not be empty prior to this operation.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "ref",
+          "sha"
+        ]
+      },
+      "field": "ref",
+      "nearMiss": {
+        "producer": "GITHUB_CLEAR_REPOSITORY_CACHE_BY_KEY",
+        "producerDescription": "Deletes GitHub Actions caches from a repository matching a specific `key` and an optional Git `ref`, used to manage storage or clear outdated/corrupted caches; the action succeeds even if no matching caches are found to delete.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "ambiguous",
+      "notes": "Same 'ref' reasoning as entry 17 (second CREATE_A_REFERENCE sample)."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_GET_A_PACKAGE_FOR_A_USER",
+        "description": "Retrieves metadata for a specific package owned by a GitHub user, using package type, name, and username as identifiers.",
         "requiredInputs": [
           "package_type",
           "package_name",
-          "package_version_id"
+          "username"
         ]
       },
       "field": "package_type",
@@ -1032,78 +1028,107 @@
         "score": 5,
         "excludedAsCircular": true
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "true_negative",
+      "notes": "Same package_type reasoning as entry 6."
     },
     {
       "consumer": {
-        "slug": "GITHUB_SEARCH_COMMITS_BY_AUTHOR",
-        "description": "Searches commits across GitHub using the Search API (e.g., by author/email/org/date range) without per-repo scanning. Use when you need to find commits by author, committer email, organization, or date ranges across multiple repositories. This avoids the need to list commits per repository and prevents 409 errors on empty repos.",
-        "requiredInputs": [
-          "q"
-        ]
-      },
-      "field": "q",
-      "nearMiss": null,
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_GET_A_WEBHOOK_CONFIGURATION_FOR_AN_ORGANIZATION",
-        "description": "Retrieves the configuration for a specific webhook associated with a GitHub organization.",
-        "requiredInputs": [
-          "org",
-          "hook_id"
-        ]
-      },
-      "field": "hook_id",
-      "nearMiss": null,
-      "verdict": null,
-      "notes": ""
-    },
-    {
-      "consumer": {
-        "slug": "GITHUB_COMPARE_TWO_COMMITS",
-        "description": "Compares two commit points (commits, branches, tags, or SHAs) within a repository or across forks, using `BASE...HEAD` or `OWNER:REF...OWNER:REF` format for the `basehead` parameter.",
+        "slug": "GITHUB_CREATE_OR_UPDATE_FILE_CONTENTS",
+        "description": "Creates a new file or updates an existing file in a GitHub repository; SHA can be provided to validate file updates, automatically fetched if not provided.",
         "requiredInputs": [
           "owner",
           "repo",
-          "basehead"
+          "path",
+          "message",
+          "content"
         ]
       },
-      "field": "basehead",
-      "nearMiss": null,
-      "verdict": null,
-      "notes": ""
+      "field": "path",
+      "nearMiss": {
+        "producer": "GITHUB_ABORT_REPOSITORY_MIGRATION",
+        "producerDescription": "Tool to abort a repository migration that is queued or in progress. Use when you need to cancel an ongoing migration operation.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "ambiguous",
+      "notes": "GET_REPOSITORY_CONTENT's own directory-listing mode does return each entry's 'path' -- genuinely reusable if this is an existing file being updated -- but the same field is just as plausibly a brand-new caller-chosen path when creating a file. Couldn't call this one without knowing which workflow is intended."
     },
     {
       "consumer": {
-        "slug": "GITHUB_GET_REPOS_ATTESTATIONS",
-        "description": "Tool to retrieve attestations by subject digest from a GitHub repository. Use when you need to verify or check attestations for a specific artifact identified by its SHA256 digest.",
+        "slug": "GITHUB_REMOVE_A_LABEL_FROM_AN_ISSUE",
+        "description": "Removes a label currently applied to a specific issue in a repository.",
         "requiredInputs": [
           "owner",
           "repo",
-          "subject_digest"
+          "issue_number",
+          "name"
         ]
       },
-      "field": "subject_digest",
-      "nearMiss": null,
-      "verdict": null,
-      "notes": ""
+      "field": "name",
+      "nearMiss": {
+        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
+        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "true_negative",
+      "notes": "Unlike 'login'/'key', 'name' spans too many genuinely unrelated concepts catalog-wide (repo/org/team/file/variable/label/project/tag names) for a single suggested producer to be reliably right, even though a specific correct source (an issue's own existing label list) does exist for this specific case."
     },
     {
       "consumer": {
-        "slug": "GITHUB_SEARCH_USERS",
-        "description": "Searches for users on GitHub by criteria like username, email, location, followers, or repository associations, using a flexible query string `q`.",
+        "slug": "GITHUB_UPDATE_A_LABEL",
+        "description": "Updates an existing label's name, color, or description within a specified repository.",
         "requiredInputs": [
-          "q"
+          "owner",
+          "repo",
+          "name"
         ]
       },
-      "field": "q",
+      "field": "name",
+      "nearMiss": {
+        "producer": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
+        "producerDescription": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "true_negative",
+      "notes": "Same reasoning as entry 56."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_CREATE_DRAFT_ITEM_FOR_USER_PROJECT",
+        "description": "Creates a draft issue item in a user-owned GitHub ProjectsV2. Use when you need to add a new draft item to track ideas or tasks in a user's project.",
+        "requiredInputs": [
+          "username",
+          "project_number",
+          "title"
+        ]
+      },
+      "field": "title",
+      "nearMiss": {
+        "producer": "GITHUB_ADD_ASSIGNEES_TO_AN_ISSUE",
+        "producerDescription": "Adds assignees to a GitHub issue. This action only adds users - it does not remove existing assignees. Changes are silently ignored if the authenticated user lacks push access to the repository.",
+        "score": 1,
+        "excludedAsCircular": false
+      },
+      "verdict": "true_negative",
+      "notes": "Caller-authored title for a new draft project item."
+    },
+    {
+      "consumer": {
+        "slug": "GITHUB_CREATE_VIEW_FOR_USER_PROJECT",
+        "description": "Tool to create a new view in a user-owned GitHub project (Projects V2). Use when you need to add a customized view with specific layout, filters, and visible fields to organize project items. Note: This action works with GitHub Projects V2. The view can be configured with different layouts (table, board, roadmap) and optional filters. The visible_fields parameter is not applicable to roadmap layouts.",
+        "requiredInputs": [
+          "user_id",
+          "project_number",
+          "name",
+          "layout"
+        ]
+      },
+      "field": "layout",
       "nearMiss": null,
-      "verdict": null,
-      "notes": ""
+      "verdict": "true_negative",
+      "notes": "Caller-chosen enum (table/board/roadmap) for the new project view's layout."
     }
   ]
 }
