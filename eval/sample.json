@@ -1371,8 +1371,8 @@
           "branch"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "PagesSource.branch is a genuine, real branch name of that repository (the one Pages deploys from). Repo-scoped but unambiguous and reusable for any branch-scoped operation on the same repo, similar in spirit to how a username is globally valid."
     },
     {
       "from": "GITHUB_GET_PAGES_SITE",
@@ -1401,8 +1401,8 @@
           "branch"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same reasoning as #45."
     },
     {
       "from": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
@@ -1430,8 +1430,8 @@
           "subject_digest"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "WebhookConfig.username is almost certainly the delivery-target's HTTP basic-auth username (for webhooks posting to a service requiring credentials), not a GitHub account username -- unrelated to what GITHUB_GET_USERS_ATTESTATIONS needs."
     },
     {
       "from": "GITHUB_GET_PAGES_SITE",
@@ -1460,8 +1460,8 @@
           "branch"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same reasoning as #45."
     },
     {
       "from": "GITHUB_GET_AN_ISSUE",
@@ -1492,8 +1492,8 @@
           "value"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "IssueFieldValue.value is a custom project-field value attached to a specific issue (e.g. a 'Priority' field set to 'High'); using it as the value for an arbitrary, unrelated repository variable is a coincidental match on the generic field name 'value', not a real semantic connection. A concrete instance of the single-generic-word limitation documented from the start of this project."
     },
     {
       "from": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
@@ -1520,8 +1520,8 @@
           "username"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "Same webhook-delivery-auth-username-is-not-a-GitHub-username mismatch as #47."
     },
     {
       "from": "GITHUB_GET_AN_ARTIFACT",
@@ -1552,8 +1552,8 @@
           "head_sha"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "An artifact's metadata includes the workflow_run that produced it, including its head_sha -- genuinely useful if you have an artifact and want to create a check run for the same commit it was built from."
     },
     {
       "from": "GITHUB_CREATE_OR_UPDATE_AN_ENVIRONMENT",
@@ -1584,8 +1584,8 @@
           "reviewers"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "An environment's configured deployment-approval reviewers and a pull request's requested reviewers are different GitHub features (deployment protection vs PR review requests) that both happen to be called 'reviewers'. Also plausibly circular in practice: creating/updating an environment with protection rules typically means you specified the reviewers yourself as part of that same request."
     },
     {
       "from": "GITHUB_LIST_CUSTOM_PROPERTIES_FOR_AN_ORGANIZATION",
@@ -1613,8 +1613,8 @@
           "value_type"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Listing an organization's existing custom properties reveals each one's value_type -- genuine discovery if you want to inspect or replicate an existing property's type."
     },
     {
       "from": "GITHUB_GET_A_BRANCH",
@@ -1645,8 +1645,8 @@
           "users"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "ambiguous",
+      "notes": "The data (a list of usernames currently restricted on this branch) is genuinely valid GitHub usernames, but re-adding users who are already on the restriction list isn't clearly new/useful information -- borderline between a real (if redundant) relationship and not representing genuine discovery. Labeled ambiguous rather than forcing a binary call."
     },
     {
       "from": "GITHUB_GET_AN_AUTOLINK_REFERENCE_OF_A_REPOSITORY",
@@ -1677,8 +1677,8 @@
           "url_template"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "url_template is user-authored configuration content (a URL pattern a human chooses when setting up an autolink), not system-assigned identifying data. Even though both fields share the same name/type, reusing one autolink's URL pattern to create an unrelated new autolink isn't discovering information you were missing -- it's an arbitrary content match, similar in spirit to the 'value' field case (#49) but for a more specific-sounding field name."
     },
     {
       "from": "GITHUB_GET_PAGES_SITE",
@@ -1708,8 +1708,8 @@
           "message"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same reasoning as #45."
     },
     {
       "from": "GITHUB_CREATE_A_CODESPACE_FOR_THE_AUTHENTICATED_USER",
@@ -1736,8 +1736,8 @@
           "devcontainer_path"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "The devcontainer path is auto-detected by GitHub when creating the codespace -- genuinely new information you would not necessarily know in advance, independent of the separate circularity concern about needing to know which repository to create a codespace for."
     },
     {
       "from": "GITHUB_GET_PAGES_SITE",
@@ -1766,8 +1766,8 @@
           "branch"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same reasoning as #45."
     },
     {
       "from": "GITHUB_LIST_ORG_ISSUES_FOR_THE_AUTHENTICATED_USER",
@@ -1795,8 +1795,8 @@
           "assignee"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Issue.assignee is a GitHub username, globally valid and context-independent like #39/#27/#7's username cases, even though checking assignability for an issue's existing assignee is an unusual (if not clearly useful) sequence."
     },
     {
       "from": "GITHUB_GET_BRANCH_PROTECTION",
