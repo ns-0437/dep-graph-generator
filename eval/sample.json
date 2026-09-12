@@ -32,8 +32,8 @@
           "release_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "release_id is assigned by GitHub upon creation, genuinely new info; producer does not require release_id itself."
     },
     {
       "from": "GITHUB_CREATE_A_CODESPACE_FOR_THE_AUTHENTICATED_USER",
@@ -58,8 +58,8 @@
           "repository_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "Catalog schema omits required entirely for this tool (a real gap: description says it needs repository_id or a pull_request object, but this OR-relationship is not encoded in a flat required array, so the circularity check cannot catch it). Practically, repository_id must be known to create the codespace in the first place -- the response just echoes it back."
     },
     {
       "from": "GITHUB_LIST_PROJECT_CARDS",
@@ -85,8 +85,8 @@
           "card_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Listing cards in a column requires only column_id, not card_id -- genuine discovery of card IDs. (Both tools are deprecated/sunset per GitHub, which is a real-world staleness concern but does not affect whether the matching logic itself is sound.)"
     },
     {
       "from": "GITHUB_GET_REPOSITORY_SECURITY_ADVISORY",
@@ -116,8 +116,8 @@
           "package_version_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "VulnerabilityPackage.name describes a third-party dependency named in a security advisory (e.g. \"lodash\"), which is a different thing from a package the AUTHENTICATED USER personally owns/publishes. Same string type, unrelated semantic context."
     },
     {
       "from": "GITHUB_CREATE_A_REPOSITORY_PROJECT",
@@ -148,8 +148,8 @@
           "data_type"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "project_number is assigned on creation, genuinely new. The project is owned by \"the repository owner (user or organization)\" per its description -- when the owner is a user account, this is a legitimate user-owned project_number."
     },
     {
       "from": "GITHUB_LIST_PACKAGE_VERSIONS_FOR_A_PACKAGE_OWNED_BY_A_USER",
@@ -180,8 +180,8 @@
           "package_version_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Both tools operate on packages owned by the same user; package_version_id is discovered via listing, not required to list."
     },
     {
       "from": "GITHUB_GET_PENDING_DEPLOYMENTS_FOR_A_WORKFLOW_RUN",
@@ -212,8 +212,8 @@
           "protection_rule_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Pending deployments genuinely reveal which environment(s) are awaiting approval -- you would not know environment_name without checking this first."
     },
     {
       "from": "GITHUB_ADD_A_REPOSITORY_COLLABORATOR",
@@ -241,8 +241,8 @@
           "user_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Producer requires only username (not user_id) to add a collaborator; the invitee.id in the response is a genuine username-to-numeric-id lookup, useful for the GraphQL consumer that needs the numeric id."
     },
     {
       "from": "GITHUB_LIST_ORGANIZATION_SECRETS",
@@ -270,8 +270,8 @@
           "visibility"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Listing org secrets requires only org; secret_name is discovered from the list, not required to produce it."
     },
     {
       "from": "GITHUB_CREATE_A_CHECK_RUN",
@@ -302,8 +302,8 @@
           "run_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "A check run id (a single CI check, e.g. \"lint\") is a different resource from a workflow run id (an entire workflow execution containing multiple jobs) in the real GitHub API. The match happened because CreateACheckRunResponse tokenizes to include \"run\" (from \"Check Run\"), which coincidentally satisfies the type-name-agreement rule for the unrelated concept \"run_id\". A genuinely new heuristic limitation: type names sharing a word (\"run\") across different resources."
     },
     {
       "from": "GITHUB_CONVERT_PULL_REQUEST_TO_DRAFT",
@@ -331,8 +331,8 @@
           "pull_number"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Producer requires pullRequestId (a GraphQL node ID), a different identifier space from pull_number (the numeric PR number) -- the response genuinely supplies new, useful information: the human-readable number for a PR you only had the GraphQL ID for."
     },
     {
       "from": "GITHUB_LIST_EVENTS_FOR_THE_AUTHENTICATED_USER",
@@ -360,8 +360,8 @@
           "event_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "A user's general public activity feed event (GitHub Events API: PushEvent, WatchEvent, etc.) is a different resource from an issue timeline event (Issue Events API: labeled, assigned, etc.) -- unrelated endpoints that both happen to be casually called \"events\" with an \"id\" field."
     },
     {
       "from": "GITHUB_CLOSE_PULL_REQUEST",
@@ -391,8 +391,8 @@
           "milestone_number"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "A pull request can have an associated milestone; closing it can reveal that milestone (including its number) if one was assigned, without having needed to know milestone_number beforehand. Conditional on a milestone actually being assigned, but a genuine, non-circular relationship when it is."
     },
     {
       "from": "GITHUB_CREATE_A_PULL_REQUEST",
@@ -424,8 +424,8 @@
           "comment_number"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "Even setting aside that requested_teams reflects teams you would have specified yourself when creating the PR, there is no reason the specific team requested for PR review is the team relevant to an unrelated, arbitrary team-discussion comment deletion. Coincidental field-name/type match across unrelated workflows."
     },
     {
       "from": "GITHUB_CREATE_AN_ORGANIZATION_PROJECT",
@@ -454,8 +454,8 @@
           "item_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "GitHub Projects V2 numbers are scoped per-owner: an organization-owned project's project_number is a different, independently-numbered sequence from a user-owned project's project_number. Producer is explicitly organization-scoped; consumer is explicitly _FOR_USER -- a real namespace mismatch, not the same identifier space."
     },
     {
       "from": "GITHUB_CREATE_AN_ISSUE",
