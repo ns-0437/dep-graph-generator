@@ -2288,8 +2288,8 @@
           "access_token"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "This producer directly creates the app and its response's client_id is that app's own, real, non-null client_id -- unlike #65/#69/#83's performed_via_github_app.client_id (an incidental, frequently-null field from creating an unrelated resource), this one is exactly the identifier the consumer needs, reliably."
     },
     {
       "from": "GITHUB_GET_CODE_SCANNING_ANALYSIS",
@@ -2319,8 +2319,8 @@
           "sarif_id"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "A code scanning analysis genuinely has an associated sarif_id (the SARIF upload that produced it) -- a real, direct GitHub API relationship."
     },
     {
       "from": "GITHUB_CREATE_OR_UPDATE_GITHUB_PAGES_SITE",
@@ -2350,8 +2350,8 @@
           "message"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same genuine Pages-source-branch reasoning as the other GET/CREATE/UPDATE_..._PAGES_SITE entries."
     },
     {
       "from": "GITHUB_GET_INTERACTION_RESTRICTIONS_FOR_A_REPOSITORY",
@@ -2378,8 +2378,8 @@
           "limit"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "The interaction-restriction 'limit' is an enum-like restriction-level value (e.g. existing_users/contributors_only), not an arbitrary string -- reapplying a real, valid restriction level from repo scope to the all-public-repos scope is a genuine, same-concept reuse."
     },
     {
       "from": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
@@ -2406,8 +2406,8 @@
           "username"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "Same webhook-delivery-basic-auth-username mismatch as #47/#50/#62/#64."
     },
     {
       "from": "GITHUB_GET_GRAPHQL_RATE_LIMIT",
@@ -2432,8 +2432,8 @@
           "limit"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "RateLimitData.limit is a numeric GraphQL API quota (e.g. 5000 requests/hour); the interaction-restrictions 'limit' is a restriction-level enum (e.g. existing_users). Different types entirely, coincidental field-name match only."
     },
     {
       "from": "GITHUB_GET_A_REPOSITORY_RULESET",
@@ -2464,8 +2464,8 @@
           "enforcement"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "An existing ruleset's enforcement level (active/evaluate/disabled) is a genuinely valid, reusable value for creating a new ruleset with the same enforcement setting -- same copy-existing-config pattern as #60/#61/#68/#87."
     },
     {
       "from": "GITHUB_CREATE_OR_UPDATE_GITHUB_PAGES_SITE",
@@ -2494,8 +2494,8 @@
           "branch"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same genuine Pages-source-branch reasoning."
     },
     {
       "from": "GITHUB_CREATE_AN_ISSUE",
@@ -2524,8 +2524,8 @@
           "access_token"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "Same nullable/coincidental performed_via_github_app.client_id issue as #65/#69."
     },
     {
       "from": "GITHUB_CREATE_A_GITHUB_PAGES_SITE",
@@ -2554,8 +2554,8 @@
           "branch"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same genuine Pages-source-branch reasoning."
     },
     {
       "from": "GITHUB_CREATE_A_GITHUB_PAGES_SITE",
@@ -2585,8 +2585,8 @@
           "teams"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same genuine Pages-source-branch reasoning."
     },
     {
       "from": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
@@ -2613,8 +2613,8 @@
           "username"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "Same webhook-delivery-basic-auth-username mismatch as #47/#50/#62/#64/#79."
     },
     {
       "from": "GITHUB_GET_INTERACTION_RESTRICTIONS_FOR_AN_ORGANIZATION",
@@ -2641,8 +2641,8 @@
           "limit"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "Same organization-level interaction-restriction enum, same scope on both sides (org to org) -- a direct, genuine reuse."
     },
     {
       "from": "GITHUB_GET_A_PACKAGE_VERSION_FOR_A_USER",
@@ -2671,8 +2671,8 @@
           "license"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "correct",
+      "notes": "A package version's license field is genuinely expected to hold a valid SPDX-style license key, exactly what GET_LICENSE looks up by."
     },
     {
       "from": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
@@ -2701,8 +2701,8 @@
           "view_number"
         ]
       },
-      "verdict": null,
-      "notes": ""
+      "verdict": "incorrect",
+      "notes": "Same webhook-delivery-basic-auth-username mismatch as #47/#50/#62/#64/#79/#86."
     }
   ]
 }
