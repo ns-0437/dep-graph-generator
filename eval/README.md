@@ -66,6 +66,7 @@ fuller picture than either alone, without overclaiming a number harder to defend
 
 ## Results
 
-See `RESULTS.md` once both samples are labeled — real numbers, not vibes, with the specific
-edges that turned out wrong (and why) kept as evidence rather than only reporting a
-percentage.
+See [`RESULTS.md`](RESULTS.md) — real numbers, not vibes, with the specific edges that turned
+out wrong (and why) kept as evidence rather than only reporting a percentage. Headline: 60.7%
+overall precision, 19.2% miss rate among unresolved fields, and one real tokenizer bug found
+and fixed along the way (`singularize("ids")`).
