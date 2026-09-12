@@ -1,0 +1,2708 @@
+{
+  "seed": 424242,
+  "perTier": 45,
+  "generatedFrom": "dependency_graph.json",
+  "methodology": "Stratified random sample by heuristic match score (5 = leaf+type-name match, e.g. issue_number/Issue.number; 4 = exact leaf-name match, non-generic). Each entry needs 'verdict' filled in by hand: 'correct' (the producer really does supply this value), 'incorrect' (coincidental/wrong match), or 'ambiguous' (genuinely unclear without deeper GitHub API knowledge). See eval/README.md.",
+  "entries": [
+    {
+      "from": "GITHUB_CREATE_A_RELEASE",
+      "to": "GITHUB_LIST_REACTIONS_FOR_A_RELEASE",
+      "label": "release_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "CreateReleaseResponse",
+        "path": "data.id"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_A_RELEASE",
+        "description": "Creates a release in a GitHub repository for a specified tag; the tag must be unique for published releases, and if a `discussion_category_name` is given, it must already exist.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "tag_name"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_LIST_REACTIONS_FOR_A_RELEASE",
+        "description": "Lists all reactions, or optionally filters reactions by a specific content type, for a given GitHub release.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "release_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_A_CODESPACE_FOR_THE_AUTHENTICATED_USER",
+      "to": "GITHUB_ADD_REPOSITORY_TO_APP_INSTALLATION",
+      "label": "repository_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "MinimalRepository",
+        "path": "data.repository.id"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_A_CODESPACE_FOR_THE_AUTHENTICATED_USER",
+        "description": "Creates a GitHub Codespace for the authenticated user, requiring a JSON request body with either `repository_id` (integer) or a `pull_request` object (containing `pull_request_number` (integer) and `repository_id` (integer)). This action allows users to set up a development environment quickly by creating a codespace from a specified repository or pull request.",
+        "requiredInputs": []
+      },
+      "consumer": {
+        "slug": "GITHUB_ADD_REPOSITORY_TO_APP_INSTALLATION",
+        "description": "Adds a repository to a GitHub App installation, granting the app access; requires authenticated user to have admin rights for the repository and access to the installation.",
+        "requiredInputs": [
+          "installation_id",
+          "repository_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_PROJECT_CARDS",
+      "to": "GITHUB_GET_A_PROJECT_CARD",
+      "label": "card_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "ProjectCard",
+        "path": "data.cards.id"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_PROJECT_CARDS",
+        "description": "Lists all project cards for a given column_id in GitHub Projects (classic). DEPRECATION NOTICE: GitHub Projects (classic) and its REST API were sunset on April 1, 2025. This action will return 404 for most requests on GitHub.com. However, it may still work on GitHub Enterprise Server instances where classic projects are enabled. For new projects, use GitHub Projects V2 which uses the GraphQL API instead. See: https://github.blog/changelog/2024-05-23-sunset-notice-projects-classic/ Returns a list of project cards including: id, node_id, url, note (or null for linked cards), creator info, content_url (for issue/PR cards), column_url, project_url, timestamps, and archived status.",
+        "requiredInputs": [
+          "column_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_GET_A_PROJECT_CARD",
+        "description": "Retrieves all details of a specific project card, given its unique `card_id`. DEPRECATION NOTICE: GitHub Projects (classic) REST API was sunset on April 1, 2025. This action only works with existing classic project cards that were created before the sunset date. For new projects, use GitHub Projects V2 (GraphQL API) instead.",
+        "requiredInputs": [
+          "card_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_REPOSITORY_SECURITY_ADVISORY",
+      "to": "GITHUB_GET_A_PACKAGE_VERSION_FOR_THE_AUTHENTICATED_USER",
+      "label": "package_name",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "name",
+        "parentType": "VulnerabilityPackage",
+        "path": "data.vulnerabilities.package.name"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_REPOSITORY_SECURITY_ADVISORY",
+        "description": "Tool to retrieve a repository security advisory using its GHSA identifier. Use when you need detailed information about a specific security vulnerability.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "ghsa_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_GET_A_PACKAGE_VERSION_FOR_THE_AUTHENTICATED_USER",
+        "description": "Retrieves detailed information for an existing specific package version associated with the authenticated user, identified by its type, name, and version ID.",
+        "requiredInputs": [
+          "package_type",
+          "package_name",
+          "package_version_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_A_REPOSITORY_PROJECT",
+      "to": "GITHUB_ADD_FIELD_TO_USER_PROJECT",
+      "label": "project_number",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "number",
+        "parentType": "ProjectV2",
+        "path": "data.projectV2.number"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_A_REPOSITORY_PROJECT",
+        "description": "Creates a new GitHub Projects V2 project board linked to a specified repository. Note: This action uses GitHub's Projects V2 GraphQL API. The legacy Projects V1 REST API has been sunset by GitHub. The project is owned by the repository owner (user or organization) and linked to the specified repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "name"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_ADD_FIELD_TO_USER_PROJECT",
+        "description": "Tool to add a custom field to a user-owned GitHub Projects V2 project. Use when you need to add fields like status, priority, or custom data to organize project items.",
+        "requiredInputs": [
+          "username",
+          "project_number",
+          "name",
+          "data_type"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_PACKAGE_VERSIONS_FOR_A_PACKAGE_OWNED_BY_A_USER",
+      "to": "GITHUB_RESTORE_PACKAGE_VERSION_FOR_A_USER",
+      "label": "package_version_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "PackageVersion",
+        "path": "data.package_versions.id"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_PACKAGE_VERSIONS_FOR_A_PACKAGE_OWNED_BY_A_USER",
+        "description": "Lists all versions of a public package owned by a specific GitHub user, identified by package type, package name, and username.",
+        "requiredInputs": [
+          "package_type",
+          "package_name",
+          "username"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_RESTORE_PACKAGE_VERSION_FOR_A_USER",
+        "description": "Restores a specific, user-owned package version if it was deleted within the last 30 days and its original namespace and version name are still available.",
+        "requiredInputs": [
+          "package_type",
+          "package_name",
+          "username",
+          "package_version_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_PENDING_DEPLOYMENTS_FOR_A_WORKFLOW_RUN",
+      "to": "GITHUB_GET_CUSTOM_DEPLOYMENT_PROTECTION_RULE",
+      "label": "environment_name",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "name",
+        "parentType": "Environment",
+        "path": "data.pending_deployments.environment.name"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_PENDING_DEPLOYMENTS_FOR_A_WORKFLOW_RUN",
+        "description": "Retrieves pending deployment environments for a specific workflow run that are awaiting approval due to protection rules.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "run_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_GET_CUSTOM_DEPLOYMENT_PROTECTION_RULE",
+        "description": "Retrieves a specific custom deployment protection rule (used by GitHub Apps for external validation or manual approval of deployments) for a given environment in a repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "environment_name",
+          "protection_rule_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_ADD_A_REPOSITORY_COLLABORATOR",
+      "to": "GITHUB_UNFOLLOW_USER",
+      "label": "user_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "SimpleUser",
+        "path": "data.invitee.id"
+      },
+      "producer": {
+        "slug": "GITHUB_ADD_A_REPOSITORY_COLLABORATOR",
+        "description": "Adds a GitHub user as a repository collaborator, or updates their permission if already a collaborator; `permission` applies to organization-owned repositories (personal ones default to 'push' and ignore this field), and an invitation may be created or permissions updated directly.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "username"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_UNFOLLOW_USER",
+        "description": "Tool to unfollow a GitHub user using GraphQL. Use when you need to stop following a specific user on GitHub.",
+        "requiredInputs": [
+          "user_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_ORGANIZATION_SECRETS",
+      "to": "GITHUB_ENCRYPT_ORG_DEV_ENV_SECRET",
+      "label": "secret_name",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "name",
+        "parentType": "OrganizationSecret",
+        "path": "data.secrets.name"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_ORGANIZATION_SECRETS",
+        "description": "Lists GitHub Actions secrets available for a specified organization.",
+        "requiredInputs": [
+          "org"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_ENCRYPT_ORG_DEV_ENV_SECRET",
+        "description": "Creates or updates an organization's GitHub Codespaces secret using an encrypted value and its corresponding public key ID.",
+        "requiredInputs": [
+          "org",
+          "secret_name",
+          "visibility"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_A_CHECK_RUN",
+      "to": "GITHUB_LIST_JOBS_FOR_A_WORKFLOW_RUN",
+      "label": "run_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "CreateACheckRunResponse",
+        "path": "data.id"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_A_CHECK_RUN",
+        "description": "Creates a new check run for a specific commit in a repository, used by external services to report status, detailed feedback, annotations, and images directly within the GitHub UI. NOTE: This endpoint requires GitHub App authentication - OAuth tokens and personal access tokens cannot create check runs.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "name",
+          "head_sha"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_LIST_JOBS_FOR_A_WORKFLOW_RUN",
+        "description": "Lists jobs for a specific workflow run in a GitHub repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "run_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CONVERT_PULL_REQUEST_TO_DRAFT",
+      "to": "GITHUB_LIST_REQUESTED_REVIEWERS_FOR_A_PULL_REQUEST",
+      "label": "pull_number",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "number",
+        "parentType": "PullRequestDraft",
+        "path": "data.pullRequest.number"
+      },
+      "producer": {
+        "slug": "GITHUB_CONVERT_PULL_REQUEST_TO_DRAFT",
+        "description": "Converts an open pull request to draft status, indicating it is not ready for review. Use this action when you need to mark a PR as work-in-progress after it has been opened. Draft pull requests cannot be merged until they are marked as ready for review. This action is useful when additional work is needed before the PR can be reviewed or merged.",
+        "requiredInputs": [
+          "pullRequestId"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_LIST_REQUESTED_REVIEWERS_FOR_A_PULL_REQUEST",
+        "description": "Gets all users and teams requested to review a specific pull request in a repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "pull_number"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_EVENTS_FOR_THE_AUTHENTICATED_USER",
+      "to": "GITHUB_GET_AN_ISSUE_EVENT",
+      "label": "event_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "Event",
+        "path": "data.events.id"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_EVENTS_FOR_THE_AUTHENTICATED_USER",
+        "description": "Lists public events for the specified GitHub user, or private events if authenticated as that user, in reverse chronological order.",
+        "requiredInputs": [
+          "username"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_GET_AN_ISSUE_EVENT",
+        "description": "Fetches details of a specific issue event for a given repository and event ID.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "event_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CLOSE_PULL_REQUEST",
+      "to": "GITHUB_UPDATE_A_MILESTONE",
+      "label": "milestone_number",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "number",
+        "parentType": "Milestone",
+        "path": "data.milestone.number"
+      },
+      "producer": {
+        "slug": "GITHUB_CLOSE_PULL_REQUEST",
+        "description": "Closes an open pull request without merging it. The pull request state is set to \"closed\" and it can be reopened later if needed. Use this action when you want to reject or abandon a pull request without merging the proposed changes into the base branch. You must have write access to the repository to close pull requests.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "pull_number"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_UPDATE_A_MILESTONE",
+        "description": "Updates a milestone in a repository, identified by `owner`, `repo`, and `milestone_number`, by allowing modification of its `title`, `state`, `description`, or `due_on`; at least one of these four attributes must be provided to perform an update.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "milestone_number"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_A_PULL_REQUEST",
+      "to": "GITHUB_DELETE_DISCUSSION_COMMENT",
+      "label": "team_slug",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "slug",
+        "parentType": "Team",
+        "path": "data.requested_teams.slug"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_A_PULL_REQUEST",
+        "description": "Creates a pull request in a GitHub repository, requiring existing `base` and `head` branches; `title` or `issue` must be provided.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "head",
+          "base"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_DELETE_DISCUSSION_COMMENT",
+        "description": "Deletes a specific comment from an existing team discussion within an organization, provided the specified organization, team, discussion, and comment all exist.",
+        "requiredInputs": [
+          "org",
+          "team_slug",
+          "discussion_number",
+          "comment_number"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_AN_ORGANIZATION_PROJECT",
+      "to": "GITHUB_DELETE_PROJECT_ITEM_FOR_USER",
+      "label": "project_number",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "number",
+        "parentType": "CreateAnOrganizationProjectResponse",
+        "path": "data.number"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_AN_ORGANIZATION_PROJECT",
+        "description": "Creates a new classic project board within a specified GitHub organization. Note: This action uses GitHub's Projects (classic) REST API. The classic projects feature may be disabled in some organizations, and GitHub recommends migrating to Projects V2 (accessible via GraphQL API) for new projects. Requirements: - The authenticated user must be an organization member with project creation permissions - Classic projects must be enabled for the organization - Requires 'repo' and 'admin:org' or 'write:org' scopes",
+        "requiredInputs": [
+          "org",
+          "name"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_DELETE_PROJECT_ITEM_FOR_USER",
+        "description": "Tool to delete a project item for a user in GitHub Projects V2. Use when you need to remove an item from a user's project. Requires the project item's GraphQL node ID (starts with 'PVTI_'). Uses the GitHub GraphQL API deleteProjectV2Item mutation.",
+        "requiredInputs": [
+          "username",
+          "project_number",
+          "item_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_AN_ISSUE",
+      "to": "GITHUB_CLOSE_ISSUE",
+      "label": "issue_number",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "number",
+        "parentType": "CreateAnIssueResponse",
+        "path": "data.number"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_AN_ISSUE",
+        "description": "Creates a new issue in a GitHub repository, requiring the repository to exist and have issues enabled; specific fields like assignees, milestone, or labels may require push access.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "title"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_CLOSE_ISSUE",
+        "description": "Close a GitHub issue by setting its state to closed. Use this action when you need to mark an issue as resolved or no longer relevant. Optionally specify a reason for closing (completed or not_planned) to provide context.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "issue_number"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_AN_ARTIFACT",
+      "to": "GITHUB_APPROVE_WORKFLOW_RUN_FOR_FORK_PULL_REQUEST",
+      "label": "run_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "WorkflowRunInfo",
+        "path": "data.data.workflow_run.id"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_AN_ARTIFACT",
+        "description": "Gets a specific artifact for a repository by `artifact_id`. This action retrieves the details of a specific artifact from a GitHub repository using the artifact's unique identifier. It allows users to access information about artifacts stored in the repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "artifact_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_APPROVE_WORKFLOW_RUN_FOR_FORK_PULL_REQUEST",
+        "description": "Approves a workflow run from a forked repository's pull request; call this when such a run requires manual approval due to workflow configuration.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "run_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_PROJECT_COLUMNS",
+      "to": "GITHUB_MOVE_A_PROJECT_COLUMN",
+      "label": "column_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "ProjectColumn",
+        "path": "data.columns.id"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_PROJECT_COLUMNS",
+        "description": "Lists all of a GitHub project's columns (e.g., 'To Do', 'In Progress'); project_id must identify a valid, accessible project. Note: This action uses GitHub's Projects (classic) REST API. The Projects (classic) API was sunset on April 1, 2025. This action will return an empty columns list with an informative message for projects that no longer exist or when the API returns 404.",
+        "requiredInputs": [
+          "project_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_MOVE_A_PROJECT_COLUMN",
+        "description": "Moves a column within a GitHub project (classic) to a new position. DEPRECATION NOTICE: GitHub Classic Projects (V1) and its REST API were sunset on April 1, 2025. This action will return a 404 error on GitHub.com. For new projects, use GitHub Projects V2 which uses the GraphQL API instead. The `position` parameter can be: - 'first': Move the column to the beginning of the project - 'last': Move the column to the end of the project - 'after:<column_id>': Place the column after the specified column (e.g., 'after:67890') See: https://github.blog/changelog/2024-05-23-sunset-notice-projects-classic/",
+        "requiredInputs": [
+          "column_id",
+          "position"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_PROJECT_COLUMNS",
+      "to": "GITHUB_LIST_PROJECT_CARDS",
+      "label": "column_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "ProjectColumn",
+        "path": "data.columns.id"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_PROJECT_COLUMNS",
+        "description": "Lists all of a GitHub project's columns (e.g., 'To Do', 'In Progress'); project_id must identify a valid, accessible project. Note: This action uses GitHub's Projects (classic) REST API. The Projects (classic) API was sunset on April 1, 2025. This action will return an empty columns list with an informative message for projects that no longer exist or when the API returns 404.",
+        "requiredInputs": [
+          "project_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_LIST_PROJECT_CARDS",
+        "description": "Lists all project cards for a given column_id in GitHub Projects (classic). DEPRECATION NOTICE: GitHub Projects (classic) and its REST API were sunset on April 1, 2025. This action will return 404 for most requests on GitHub.com. However, it may still work on GitHub Enterprise Server instances where classic projects are enabled. For new projects, use GitHub Projects V2 which uses the GraphQL API instead. See: https://github.blog/changelog/2024-05-23-sunset-notice-projects-classic/ Returns a list of project cards including: id, node_id, url, note (or null for linked cards), creator info, content_url (for issue/PR cards), column_url, project_url, timestamps, and archived status.",
+        "requiredInputs": [
+          "column_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_A_COMMIT_COMMENT",
+      "to": "GITHUB_GET_GIST_COMMENT",
+      "label": "comment_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "CreateACommitCommentResponse",
+        "path": "data.id"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_A_COMMIT_COMMENT",
+        "description": "Creates a comment on a specific commit, or on a specific line if `path` and `position` are provided.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "commit_sha",
+          "body"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_GET_GIST_COMMENT",
+        "description": "Retrieves a specific Gist comment by its ID and the Gist's ID.",
+        "requiredInputs": [
+          "gist_id",
+          "comment_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_A_COMMIT_COMMENT",
+      "to": "GITHUB_CREATE_REACTION_FOR_AN_ISSUE_COMMENT",
+      "label": "comment_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "CreateACommitCommentResponse",
+        "path": "data.id"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_A_COMMIT_COMMENT",
+        "description": "Creates a comment on a specific commit, or on a specific line if `path` and `position` are provided.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "commit_sha",
+          "body"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_CREATE_REACTION_FOR_AN_ISSUE_COMMENT",
+        "description": "Creates a reaction for a specific comment on an issue within a GitHub repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "comment_id",
+          "content"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_GISTS_FOR_THE_AUTHENTICATED_USER",
+      "to": "GITHUB_DELETE_GIST_COMMENT",
+      "label": "gist_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "Gist",
+        "path": "data.gists.id"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_GISTS_FOR_THE_AUTHENTICATED_USER",
+        "description": "Lists gists for the authenticated user, with optional filtering by update time and pagination.",
+        "requiredInputs": []
+      },
+      "consumer": {
+        "slug": "GITHUB_DELETE_GIST_COMMENT",
+        "description": "Deletes a specific comment from a GitHub Gist using its `gist_id` and `comment_id`.",
+        "requiredInputs": [
+          "gist_id",
+          "comment_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_ORGANIZATION_CODESPACES_SECRETS",
+      "to": "GITHUB_REMOVE_REPO_FROM_ORG_SECRET_WITH_SELECTED_VISIBILITY",
+      "label": "secret_name",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "name",
+        "parentType": "CodespacesSecret",
+        "path": "data.secrets.name"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_ORGANIZATION_CODESPACES_SECRETS",
+        "description": "Lists all Codespaces secrets available for a specified organization, which must exist.",
+        "requiredInputs": [
+          "org"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_REMOVE_REPO_FROM_ORG_SECRET_WITH_SELECTED_VISIBILITY",
+        "description": "Revokes a specific repository's access to an organization-level Dependabot secret, applicable only when the secret has 'selected' visibility and the specified repository currently has access.",
+        "requiredInputs": [
+          "org",
+          "secret_name",
+          "repository_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_ORGANIZATION_SECRETS",
+      "to": "GITHUB_ADD_SELECTED_REPOSITORY_TO_ORGANIZATION_SECRET",
+      "label": "secret_name",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "name",
+        "parentType": "OrganizationSecret",
+        "path": "data.secrets.name"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_ORGANIZATION_SECRETS",
+        "description": "Lists GitHub Actions secrets available for a specified organization.",
+        "requiredInputs": [
+          "org"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_ADD_SELECTED_REPOSITORY_TO_ORGANIZATION_SECRET",
+        "description": "Adds a repository to an organization secret's access list when the secret's visibility is 'selected'; this operation is idempotent.",
+        "requiredInputs": [
+          "org",
+          "secret_name",
+          "repository_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CLOSE_PULL_REQUEST",
+      "to": "GITHUB_REMOVE_A_REPOSITORY_FROM_AN_APP_INSTALLATION",
+      "label": "repository_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "Repository",
+        "path": "data.base.repo.id"
+      },
+      "producer": {
+        "slug": "GITHUB_CLOSE_PULL_REQUEST",
+        "description": "Closes an open pull request without merging it. The pull request state is set to \"closed\" and it can be reopened later if needed. Use this action when you want to reject or abandon a pull request without merging the proposed changes into the base branch. You must have write access to the repository to close pull requests.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "pull_number"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_REMOVE_A_REPOSITORY_FROM_AN_APP_INSTALLATION",
+        "description": "Removes a repository from a GitHub App installation for the authenticated user, given a valid `installation_id` and the `repository_id` of a repository currently linked to that installation; this operation is idempotent.",
+        "requiredInputs": [
+          "installation_id",
+          "repository_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_ADD_TEAM_ACCESS_RESTRICTIONS",
+      "to": "GITHUB_ADD_OR_UPDATE_TEAM_MEMBERSHIP_FOR_USER",
+      "label": "team_slug",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "slug",
+        "parentType": "TeamInfo",
+        "path": "data.teams.slug"
+      },
+      "producer": {
+        "slug": "GITHUB_ADD_TEAM_ACCESS_RESTRICTIONS",
+        "description": "Adds teams to the list of teams with push access to a protected branch. This action grants additional teams push access to a protected branch. Unlike 'Set team access restrictions' (PUT), this action adds to the existing list rather than replacing it entirely. Prerequisites: - The repository must be owned by an organization (not a personal account) - The branch must have protection rules enabled - The branch protection must have restrictions configured - The teams must exist in the organization and have repository access",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch",
+          "teams"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_ADD_OR_UPDATE_TEAM_MEMBERSHIP_FOR_USER",
+        "description": "Adds a GitHub user to a team or updates their role (member or maintainer), inviting them to the organization if not already a member; idempotent, returning current details if no change is made.",
+        "requiredInputs": [
+          "org",
+          "team_slug",
+          "username"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_ORGANIZATION_SECRETS",
+      "to": "GITHUB_REMOVE_REPO_FROM_ORG_DEV_ENV_SECRET",
+      "label": "secret_name",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "name",
+        "parentType": "OrganizationSecret",
+        "path": "data.secrets.name"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_ORGANIZATION_SECRETS",
+        "description": "Lists GitHub Actions secrets available for a specified organization.",
+        "requiredInputs": [
+          "org"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_REMOVE_REPO_FROM_ORG_DEV_ENV_SECRET",
+        "description": "Removes a repository's access to an organization-level Codespaces secret, if it was previously granted.",
+        "requiredInputs": [
+          "org",
+          "secret_name",
+          "repository_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_ADD_A_REPOSITORY_COLLABORATOR",
+      "to": "GITHUB_FOLLOW_USER_GRAPHQL",
+      "label": "userId",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "SimpleUser",
+        "path": "data.invitee.id"
+      },
+      "producer": {
+        "slug": "GITHUB_ADD_A_REPOSITORY_COLLABORATOR",
+        "description": "Adds a GitHub user as a repository collaborator, or updates their permission if already a collaborator; `permission` applies to organization-owned repositories (personal ones default to 'push' and ignore this field), and an invitation may be created or permissions updated directly.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "username"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_FOLLOW_USER_GRAPHQL",
+        "description": "Tool to follow a GitHub user using GraphQL. Use when you need to make the authenticated user follow another user.",
+        "requiredInputs": [
+          "userId"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_DISCUSSION_COMMENTS",
+      "to": "GITHUB_LIST_REACTIONS_FOR_A_TEAM_DISCUSSION_COMMENT",
+      "label": "comment_number",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "number",
+        "parentType": "DiscussionComment",
+        "path": "data.comments.number"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_DISCUSSION_COMMENTS",
+        "description": "Lists all comments for a specific team discussion within an organization. Note: Team discussions are deprecated as of 2023-11-28. Consider using GitHub Discussions instead. This endpoint requires the authenticated user to be a member of the organization and have access to the team's discussions.",
+        "requiredInputs": [
+          "org",
+          "team_slug",
+          "discussion_number"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_LIST_REACTIONS_FOR_A_TEAM_DISCUSSION_COMMENT",
+        "description": "Lists reactions for a specific comment in a team discussion within an organization, optionally filtering by content type.",
+        "requiredInputs": [
+          "org",
+          "team_slug",
+          "discussion_number",
+          "comment_number"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_AN_ISSUE_COMMENT",
+      "to": "GITHUB_LIST_REACTIONS_FOR_A_PULL_REQUEST_REVIEW_COMMENT",
+      "label": "comment_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "CreateAnIssueCommentResponse",
+        "path": "data.id"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_AN_ISSUE_COMMENT",
+        "description": "Creates a new comment on an existing GitHub issue or pull request within the specified repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "issue_number",
+          "body"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_LIST_REACTIONS_FOR_A_PULL_REQUEST_REVIEW_COMMENT",
+        "description": "Lists reactions for a pull request review comment in a repository, optionally filtering by reaction type.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "comment_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_ORGANIZATION_CODESPACES_SECRETS",
+      "to": "GITHUB_CREATE_OR_UPDATE_A_SECRET_FOR_THE_AUTHENTICATED_USER",
+      "label": "secret_name",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "name",
+        "parentType": "CodespacesSecret",
+        "path": "data.secrets.name"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_ORGANIZATION_CODESPACES_SECRETS",
+        "description": "Lists all Codespaces secrets available for a specified organization, which must exist.",
+        "requiredInputs": [
+          "org"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_CREATE_OR_UPDATE_A_SECRET_FOR_THE_AUTHENTICATED_USER",
+        "description": "Creates or updates a Codespaces secret for the authenticated user; `encrypted_value` must be encrypted with the public key (ID: `key_id`) from GitHub's 'Get public key for the authenticated user' endpoint.",
+        "requiredInputs": [
+          "secret_name"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_A_GITHUB_PAGES_DEPLOYMENT",
+      "to": "GITHUB_GET_THE_STATUS_OF_A_GITHUB_PAGES_DEPLOYMENT",
+      "label": "pages_deployment_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "CreateAGithubPagesDeploymentResponse",
+        "path": "data.id"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_A_GITHUB_PAGES_DEPLOYMENT",
+        "description": "Creates a GitHub Pages deployment for a repository using a specified artifact and OIDC token, provided GitHub Pages is enabled and the artifact (containing static assets) is accessible.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "oidc_token"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_GET_THE_STATUS_OF_A_GITHUB_PAGES_DEPLOYMENT",
+        "description": "Retrieves the status of a specific GitHub Pages deployment for a repository, which must have GitHub Pages enabled.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "pages_deployment_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CLOSE_PULL_REQUEST",
+      "to": "GITHUB_ADD_REPOSITORY_TO_APP_INSTALLATION",
+      "label": "repository_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "Repository",
+        "path": "data.base.repo.id"
+      },
+      "producer": {
+        "slug": "GITHUB_CLOSE_PULL_REQUEST",
+        "description": "Closes an open pull request without merging it. The pull request state is set to \"closed\" and it can be reopened later if needed. Use this action when you want to reject or abandon a pull request without merging the proposed changes into the base branch. You must have write access to the repository to close pull requests.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "pull_number"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_ADD_REPOSITORY_TO_APP_INSTALLATION",
+        "description": "Adds a repository to a GitHub App installation, granting the app access; requires authenticated user to have admin rights for the repository and access to the installation.",
+        "requiredInputs": [
+          "installation_id",
+          "repository_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_FIND_PULL_REQUESTS",
+      "to": "GITHUB_REQUEST_REVIEWERS_FOR_A_PULL_REQUEST",
+      "label": "pull_number",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "number",
+        "parentType": "PullRequest",
+        "path": "data.pull_requests.number"
+      },
+      "producer": {
+        "slug": "GITHUB_FIND_PULL_REQUESTS",
+        "description": "Primary tool to find and search pull requests. Supports filtering by repository, author, state, labels, and merge status, and returns structured PR data for reliable use in workflows. GitHub search results are capped at ~1000 total items; narrow filters when totals approach this limit. `created_since`/`updated_since` filter on creation/update timestamps, not `merged_at`; apply merge-date filtering client-side.",
+        "requiredInputs": []
+      },
+      "consumer": {
+        "slug": "GITHUB_REQUEST_REVIEWERS_FOR_A_PULL_REQUEST",
+        "description": "Adds reviewers to a specific pull request identified by owner, repo, and pull_number. This is NOT a search action - it operates on an already-known PR number. Requires `owner`, `repo`, `pull_number`, and at least one of `reviewers` or `team_reviewers`.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "pull_number"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_DEPLOYMENT_PROTECTION_RULE",
+      "to": "GITHUB_LIST_DEPLOYMENT_STATUSES",
+      "label": "deployment_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "CreateACustomDeploymentProtectionRuleOnAnEnvironmentResponse",
+        "path": "data.id"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_DEPLOYMENT_PROTECTION_RULE",
+        "description": "Enables a custom deployment protection rule for an existing environment in a repository by linking a configured GitHub App (via `integration_id`) to control deployments.",
+        "requiredInputs": [
+          "environment_name",
+          "repo",
+          "owner"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_LIST_DEPLOYMENT_STATUSES",
+        "description": "Lists all statuses for a given deployment in a repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "deployment_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_REACTION_FOR_AN_ISSUE",
+      "to": "GITHUB_DELETE_COMMIT_COMMENT_REACTION",
+      "label": "reaction_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "CreateReactionForAnIssueResponse",
+        "path": "data.id"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_REACTION_FOR_AN_ISSUE",
+        "description": "Creates a reaction for a specified issue within a GitHub repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "issue_number",
+          "content"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_DELETE_COMMIT_COMMENT_REACTION",
+        "description": "Deletes a reaction from a commit comment in a GitHub repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "comment_id",
+          "reaction_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_A_CODESPACE_FOR_THE_AUTHENTICATED_USER",
+      "to": "GITHUB_MANAGE_CUSTOM_PROPERTIES_FOR_ORG_REPOS",
+      "label": "repository_names",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "name",
+        "parentType": "MinimalRepository",
+        "path": "data.repository.name"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_A_CODESPACE_FOR_THE_AUTHENTICATED_USER",
+        "description": "Creates a GitHub Codespace for the authenticated user, requiring a JSON request body with either `repository_id` (integer) or a `pull_request` object (containing `pull_request_number` (integer) and `repository_id` (integer)). This action allows users to set up a development environment quickly by creating a codespace from a specified repository or pull request.",
+        "requiredInputs": []
+      },
+      "consumer": {
+        "slug": "GITHUB_MANAGE_CUSTOM_PROPERTIES_FOR_ORG_REPOS",
+        "description": "Creates or updates values for an organization's predefined custom properties across multiple repositories (up to 30).",
+        "requiredInputs": [
+          "org",
+          "repository_names",
+          "properties"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_A_CODESPACE_FOR_THE_AUTHENTICATED_USER",
+      "to": "GITHUB_GET_CODESPACE",
+      "label": "codespace_name",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "name",
+        "parentType": "CodespaceMachine",
+        "path": "data.machine.name"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_A_CODESPACE_FOR_THE_AUTHENTICATED_USER",
+        "description": "Creates a GitHub Codespace for the authenticated user, requiring a JSON request body with either `repository_id` (integer) or a `pull_request` object (containing `pull_request_number` (integer) and `repository_id` (integer)). This action allows users to set up a development environment quickly by creating a codespace from a specified repository or pull request.",
+        "requiredInputs": []
+      },
+      "consumer": {
+        "slug": "GITHUB_GET_CODESPACE",
+        "description": "Call to retrieve detailed information for a `codespace_name` belonging to the authenticated user, ensuring the codespace exists and is accessible.",
+        "requiredInputs": [
+          "codespace_name"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_A_CHECK_RUN",
+      "to": "GITHUB_REQUEST_REVIEWERS",
+      "label": "pull_number",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "number",
+        "parentType": "PullRequestReference",
+        "path": "data.pull_requests.number"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_A_CHECK_RUN",
+        "description": "Creates a new check run for a specific commit in a repository, used by external services to report status, detailed feedback, annotations, and images directly within the GitHub UI. NOTE: This endpoint requires GitHub App authentication - OAuth tokens and personal access tokens cannot create check runs.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "name",
+          "head_sha"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_REQUEST_REVIEWERS",
+        "description": "Requests reviewers for a specific pull request identified by owner, repository, and pull request number. Use this action when you need to add individual users or teams as reviewers to an existing pull request. At least one of reviewers (individual users) or team_reviewers (teams) must be provided.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "pull_number"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_ADD_ASSIGNEES_TO_AN_ISSUE",
+      "to": "GITHUB_LOOKUP_ENTERPRISE_ADMINISTRATOR_INVITATION",
+      "label": "user_login",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "login",
+        "parentType": "User",
+        "path": "data.user.login"
+      },
+      "producer": {
+        "slug": "GITHUB_ADD_ASSIGNEES_TO_AN_ISSUE",
+        "description": "Adds assignees to a GitHub issue. This action only adds users - it does not remove existing assignees. Changes are silently ignored if the authenticated user lacks push access to the repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "issue_number"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_LOOKUP_ENTERPRISE_ADMINISTRATOR_INVITATION",
+        "description": "Tool to look up a pending enterprise administrator invitation by invitee, enterprise, and role. Use when you need to check if a specific user has a pending invitation to become an enterprise administrator.",
+        "requiredInputs": [
+          "enterprise_slug",
+          "role",
+          "user_login"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_SPONSORABLES",
+      "to": "GITHUB_CREATE_SPONSORS_TIER",
+      "label": "sponsorable_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "SponsorableNode",
+        "path": "data.nodes.id"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_SPONSORABLES",
+        "description": "Tool to list users and organizations who can be sponsored via GitHub Sponsors. Use when you need to discover sponsorable entities with optional filtering by dependency ecosystem.",
+        "requiredInputs": []
+      },
+      "consumer": {
+        "slug": "GITHUB_CREATE_SPONSORS_TIER",
+        "description": "Tool to create a new payment tier for your GitHub Sponsors profile using GraphQL. Use when you need to add a new sponsorship tier with a specific monthly price and description. The amount is specified in dollars and will be converted to cents automatically.",
+        "requiredInputs": [
+          "sponsorable_id",
+          "amount",
+          "description"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_NOTIFICATIONS",
+      "to": "GITHUB_MARK_A_THREAD_AS_READ",
+      "label": "thread_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "NotificationThread",
+        "path": "data.notifications.id"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_NOTIFICATIONS",
+        "description": "Tool to list notification threads for the authenticated user with efficient polling support. Use when you need to fetch the user's GitHub notification inbox with filters like unread/participating/since. Returns notification threads plus polling headers (Last-Modified, ETag, X-Poll-Interval) for efficient polling. IMPORTANT: This endpoint requires a Personal Access Token (classic) with 'notifications' or 'repo' scope. It does NOT work with GitHub App tokens or fine-grained personal access tokens. If the token type is incompatible, a clear error message will be returned.",
+        "requiredInputs": []
+      },
+      "consumer": {
+        "slug": "GITHUB_MARK_A_THREAD_AS_READ",
+        "description": "Marks an existing GitHub notification thread, identified by its `thread_id`, as read.",
+        "requiredInputs": [
+          "thread_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_JOBS_FOR_A_WORKFLOW_RUN",
+      "to": "GITHUB_GET_WORKFLOW_RUN_JOB",
+      "label": "job_id",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "id",
+        "parentType": "WorkflowJob",
+        "path": "data.jobs.id"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_JOBS_FOR_A_WORKFLOW_RUN",
+        "description": "Lists jobs for a specific workflow run in a GitHub repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "run_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_GET_WORKFLOW_RUN_JOB",
+        "description": "Retrieves detailed information for a specific job within a GitHub Actions workflow run, given its `job_id` which must be valid for the specified repository's workflow.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "job_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_ENVIRONMENT_SECRETS",
+      "to": "GITHUB_SET_SELECTED_REPOSITORIES_FOR_AN_ORGANIZATION_SECRET",
+      "label": "secret_name",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "name",
+        "parentType": "Secret",
+        "path": "data.secrets.name"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_ENVIRONMENT_SECRETS",
+        "description": "Lists the names and metadata (not values) of secrets for a specified, existing environment within an existing GitHub repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "environment_name"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_SET_SELECTED_REPOSITORIES_FOR_AN_ORGANIZATION_SECRET",
+        "description": "Replaces the list of repositories that can access an organization secret; only effective if the secret's visibility is 'selected'. Prerequisites: - The organization secret must already exist - The secret's visibility must be set to 'selected' (not 'all' or 'private') - Requires admin:org scope or actions secrets fine-grained permission This action completely replaces the repository access list. To add or remove individual repositories without affecting others, use the dedicated add/remove repository actions instead.",
+        "requiredInputs": [
+          "org",
+          "secret_name",
+          "selected_repository_ids"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CONVERT_PULL_REQUEST_TO_DRAFT",
+      "to": "GITHUB_REMOVE_REQUESTED_REVIEWERS_FROM_A_PULL_REQUEST",
+      "label": "pull_number",
+      "heuristicScore": 5,
+      "justifyingField": {
+        "name": "number",
+        "parentType": "PullRequestDraft",
+        "path": "data.pullRequest.number"
+      },
+      "producer": {
+        "slug": "GITHUB_CONVERT_PULL_REQUEST_TO_DRAFT",
+        "description": "Converts an open pull request to draft status, indicating it is not ready for review. Use this action when you need to mark a PR as work-in-progress after it has been opened. Draft pull requests cannot be merged until they are marked as ready for review. This action is useful when additional work is needed before the PR can be reviewed or merged.",
+        "requiredInputs": [
+          "pullRequestId"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_REMOVE_REQUESTED_REVIEWERS_FROM_A_PULL_REQUEST",
+        "description": "Removes currently assigned user logins and/or team slugs from a GitHub pull request's list of requested reviewers.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "pull_number",
+          "reviewers"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_PAGES_SITE",
+      "to": "GITHUB_UPDATE_PULL_REQUEST_REVIEW_PROTECTION",
+      "label": "branch",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "branch",
+        "parentType": "PagesSource",
+        "path": "data.source.branch"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_PAGES_SITE",
+        "description": "Retrieves information for a GitHub Pages site, which must be enabled for the repository.",
+        "requiredInputs": [
+          "owner",
+          "repo"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_UPDATE_PULL_REQUEST_REVIEW_PROTECTION",
+        "description": "Updates pull request review protection settings (e.g., required approvals, review dismissal, bypass allowances) for a branch; branch protection features must be available for the repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_PAGES_SITE",
+      "to": "GITHUB_GET_COMMIT_SIGNATURE_PROTECTION",
+      "label": "branch",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "branch",
+        "parentType": "PagesSource",
+        "path": "data.source.branch"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_PAGES_SITE",
+        "description": "Retrieves information for a GitHub Pages site, which must be enabled for the repository.",
+        "requiredInputs": [
+          "owner",
+          "repo"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_GET_COMMIT_SIGNATURE_PROTECTION",
+        "description": "Gets the commit signature protection status for a branch in a repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
+      "to": "GITHUB_GET_USERS_ATTESTATIONS",
+      "label": "username",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "username",
+        "parentType": "WebhookConfig",
+        "path": "data.config.username"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
+        "description": "Retrieves the full configuration, including subscribed events and delivery settings, for an existing organization webhook.",
+        "requiredInputs": [
+          "org",
+          "hook_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_GET_USERS_ATTESTATIONS",
+        "description": "Tool to get attestations by subject digest for a GitHub user. Use when you need to retrieve attestation data for a specific artifact or resource identified by its subject digest.",
+        "requiredInputs": [
+          "username",
+          "subject_digest"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_PAGES_SITE",
+      "to": "GITHUB_LIST_APPS_WITH_ACCESS_TO_THE_PROTECTED_BRANCH",
+      "label": "branch",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "branch",
+        "parentType": "PagesSource",
+        "path": "data.source.branch"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_PAGES_SITE",
+        "description": "Retrieves information for a GitHub Pages site, which must be enabled for the repository.",
+        "requiredInputs": [
+          "owner",
+          "repo"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_LIST_APPS_WITH_ACCESS_TO_THE_PROTECTED_BRANCH",
+        "description": "Lists GitHub Apps with push access to a repository's protected branch.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_AN_ISSUE",
+      "to": "GITHUB_CREATE_A_REPOSITORY_VARIABLE",
+      "label": "value",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "value",
+        "parentType": "IssueFieldValue",
+        "path": "data.issue_field_values.value"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_AN_ISSUE",
+        "description": "Retrieves detailed information about a specific issue in a repository using the owner, repository name, and issue number.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "issue_number"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_CREATE_A_REPOSITORY_VARIABLE",
+        "description": "Creates a new, unencrypted variable in a repository for GitHub Actions workflows; fails if a variable with the same name already exists.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "name",
+          "value"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
+      "to": "GITHUB_LIST_REPOSITORIES_FOR_A_USER",
+      "label": "username",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "username",
+        "parentType": "WebhookConfig",
+        "path": "data.config.username"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
+        "description": "Retrieves the full configuration, including subscribed events and delivery settings, for an existing organization webhook.",
+        "requiredInputs": [
+          "org",
+          "hook_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_LIST_REPOSITORIES_FOR_A_USER",
+        "description": "Lists public repositories for a specified GitHub user, who must have an existing account.",
+        "requiredInputs": [
+          "username"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_AN_ARTIFACT",
+      "to": "GITHUB_CREATE_A_CHECK_RUN",
+      "label": "head_sha",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "head_sha",
+        "parentType": "WorkflowRunInfo",
+        "path": "data.data.workflow_run.head_sha"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_AN_ARTIFACT",
+        "description": "Gets a specific artifact for a repository by `artifact_id`. This action retrieves the details of a specific artifact from a GitHub repository using the artifact's unique identifier. It allows users to access information about artifacts stored in the repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "artifact_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_CREATE_A_CHECK_RUN",
+        "description": "Creates a new check run for a specific commit in a repository, used by external services to report status, detailed feedback, annotations, and images directly within the GitHub UI. NOTE: This endpoint requires GitHub App authentication - OAuth tokens and personal access tokens cannot create check runs.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "name",
+          "head_sha"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_OR_UPDATE_AN_ENVIRONMENT",
+      "to": "GITHUB_REMOVE_REQUESTED_REVIEWERS_FROM_A_PULL_REQUEST",
+      "label": "reviewers",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "reviewer",
+        "parentType": "Reviewer",
+        "path": "data.protection_rules.reviewers.reviewer"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_OR_UPDATE_AN_ENVIRONMENT",
+        "description": "Creates a new environment or updates an existing one in a GitHub repository, allowing configuration of deployment protection rules such as wait timers and reviewers; ensure `environment_name` is URL-encoded if it contains special characters.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "environment_name"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_REMOVE_REQUESTED_REVIEWERS_FROM_A_PULL_REQUEST",
+        "description": "Removes currently assigned user logins and/or team slugs from a GitHub pull request's list of requested reviewers.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "pull_number",
+          "reviewers"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_CUSTOM_PROPERTIES_FOR_AN_ORGANIZATION",
+      "to": "GITHUB_CREATE_OR_UPDATE_CUSTOM_PROPERTY_ORG",
+      "label": "value_type",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "value_type",
+        "parentType": "CustomProperty",
+        "path": "data.custom_properties.value_type"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_CUSTOM_PROPERTIES_FOR_AN_ORGANIZATION",
+        "description": "Gets the schema definitions for all custom properties configured for an organization, not the specific values assigned to repositories.",
+        "requiredInputs": [
+          "org"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_CREATE_OR_UPDATE_CUSTOM_PROPERTY_ORG",
+        "description": "Creates a new custom property (name must be unique for creation) or updates an existing one for an organization to define metadata for its repositories.",
+        "requiredInputs": [
+          "org",
+          "custom_property_name",
+          "value_type"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_A_BRANCH",
+      "to": "GITHUB_ADD_USER_ACCESS_RESTRICTIONS",
+      "label": "users",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "users",
+        "parentType": "Restrictions",
+        "path": "data.protection.restrictions.users"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_A_BRANCH",
+        "description": "Retrieves detailed information for a specified branch within a GitHub repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_ADD_USER_ACCESS_RESTRICTIONS",
+        "description": "Adds users to the list of people allowed to push to a protected branch in an organization repository. Important notes: - This action only works on organization-owned repositories (not personal repos) - The branch must already have protection rules with restrictions enabled - Users must have write access to the repository to be added - The combined total of users, apps, and teams is limited to 100 items",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch",
+          "users"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_AN_AUTOLINK_REFERENCE_OF_A_REPOSITORY",
+      "to": "GITHUB_CREATE_AN_AUTOLINK_REFERENCE_FOR_A_REPOSITORY",
+      "label": "url_template",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "url_template",
+        "parentType": "GetAnAutolinkReferenceOfARepositoryResponse",
+        "path": "data.url_template"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_AN_AUTOLINK_REFERENCE_OF_A_REPOSITORY",
+        "description": "Retrieves a specific autolink reference (which automatically hyperlinks text like 'JIRA-123' to an external system) for a repository using its unique ID; requires administrator access to the repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "autolink_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_CREATE_AN_AUTOLINK_REFERENCE_FOR_A_REPOSITORY",
+        "description": "Creates a repository autolink to automatically convert text references (e.g., 'TICKET-123') into hyperlinks, using a unique `key_prefix` and a `url_template` that includes `<num>`.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "key_prefix",
+          "url_template"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_PAGES_SITE",
+      "to": "GITHUB_COMMIT_MULTIPLE_FILES",
+      "label": "branch",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "branch",
+        "parentType": "PagesSource",
+        "path": "data.source.branch"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_PAGES_SITE",
+        "description": "Retrieves information for a GitHub Pages site, which must be enabled for the repository.",
+        "requiredInputs": [
+          "owner",
+          "repo"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_COMMIT_MULTIPLE_FILES",
+        "description": "Tool to atomically create, update, or delete multiple files in a GitHub repository as a single commit. Uses Git Data APIs to avoid SHA mismatch conflicts that occur with the Contents API when multiple files are modified in parallel. Use when you need to make multi-file changes reliably. BRANCH CREATION: When committing to a new branch (e.g., 'fix/my-fix' or 'feature/new-feature'), you MUST provide 'base_branch' (typically 'main' or 'master') to create the branch from. If the branch already exists, base_branch is not needed. This action handles race conditions automatically: if the branch is updated by another commit between fetching the HEAD and updating the reference (resulting in a 422 'not a fast forward' error), the action will retry by refetching the HEAD and rebasing changes. Use max_retries to control this behavior.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch",
+          "message"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_A_CODESPACE_FOR_THE_AUTHENTICATED_USER",
+      "to": "GITHUB_VERIFY_DEV_CONTAINER_PERMISSIONS_ACCEPTED",
+      "label": "devcontainer_path",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "devcontainerPath",
+        "parentType": "CreateACodespaceForTheAuthenticatedUserResponse",
+        "path": "data.devcontainerPath"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_A_CODESPACE_FOR_THE_AUTHENTICATED_USER",
+        "description": "Creates a GitHub Codespace for the authenticated user, requiring a JSON request body with either `repository_id` (integer) or a `pull_request` object (containing `pull_request_number` (integer) and `repository_id` (integer)). This action allows users to set up a development environment quickly by creating a codespace from a specified repository or pull request.",
+        "requiredInputs": []
+      },
+      "consumer": {
+        "slug": "GITHUB_VERIFY_DEV_CONTAINER_PERMISSIONS_ACCEPTED",
+        "description": "Verifies if the authenticated user has accepted permissions for a specific devcontainer configuration in a repository, typically to ensure awareness before a codespace is created or used.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "ref",
+          "devcontainer_path"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_PAGES_SITE",
+      "to": "GITHUB_GET_BRANCH_PROTECTION",
+      "label": "branch",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "branch",
+        "parentType": "PagesSource",
+        "path": "data.source.branch"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_PAGES_SITE",
+        "description": "Retrieves information for a GitHub Pages site, which must be enabled for the repository.",
+        "requiredInputs": [
+          "owner",
+          "repo"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_GET_BRANCH_PROTECTION",
+        "description": "Retrieves branch protection settings for a specific, existing, and accessible branch in a GitHub repository; protection feature availability varies by GitHub product plan.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_ORG_ISSUES_FOR_THE_AUTHENTICATED_USER",
+      "to": "GITHUB_CHECK_IF_USER_CAN_BE_ASSIGNED",
+      "label": "assignee",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "assignee",
+        "parentType": "Issue",
+        "path": "data.issues.assignee"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_ORG_ISSUES_FOR_THE_AUTHENTICATED_USER",
+        "description": "Lists issues for the authenticated user within a specified GitHub organization, with options to filter by involvement type, state, labels, and to sort results.",
+        "requiredInputs": [
+          "org"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_CHECK_IF_USER_CAN_BE_ASSIGNED",
+        "description": "Verifies if a GitHub user can be assigned to issues in a repository; assignability is confirmed by an HTTP 204 (No Content) response, resulting in an empty 'data' field in the response.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "assignee"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_BRANCH_PROTECTION",
+      "to": "GITHUB_ADD_STATUS_CHECK_CONTEXTS",
+      "label": "contexts",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "context",
+        "parentType": "StatusCheck",
+        "path": "data.requiredStatusChecks.checks.context"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_BRANCH_PROTECTION",
+        "description": "Retrieves branch protection settings for a specific, existing, and accessible branch in a GitHub repository; protection feature availability varies by GitHub product plan.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_ADD_STATUS_CHECK_CONTEXTS",
+        "description": "Adds status check contexts to a protected branch's required status checks. This action appends new status check contexts to the existing list of required status checks for a protected branch. The branch must already have branch protection enabled with status checks configured. Note: The 'contexts' parameter is deprecated by GitHub in favor of 'checks' array. For new implementations, consider using update_status_check_protection with the 'checks' parameter instead.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch",
+          "contexts"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_A_BRANCH",
+      "to": "GITHUB_SET_TEAM_ACCESS_RESTRICTIONS",
+      "label": "teams",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "teams",
+        "parentType": "Restrictions",
+        "path": "data.protection.restrictions.teams"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_A_BRANCH",
+        "description": "Retrieves detailed information for a specified branch within a GitHub repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_SET_TEAM_ACCESS_RESTRICTIONS",
+        "description": "Replaces the list of teams with push access to a protected branch. This action sets (replaces) the teams that have push access to a protected branch. Unlike 'Add team access restrictions' (POST), this action replaces the entire list rather than adding to it. Use an empty list to remove all team restrictions. Prerequisites: - The repository must be owned by an organization (not a personal account) - The branch must have protection rules enabled - The branch protection must have restrictions configured - The teams must exist in the organization and have repository access",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch",
+          "teams"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
+      "to": "GITHUB_LIST_PUBLIC_EVENTS_RECEIVED_BY_A_USER",
+      "label": "username",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "username",
+        "parentType": "WebhookConfig",
+        "path": "data.config.username"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
+        "description": "Retrieves the full configuration, including subscribed events and delivery settings, for an existing organization webhook.",
+        "requiredInputs": [
+          "org",
+          "hook_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_LIST_PUBLIC_EVENTS_RECEIVED_BY_A_USER",
+        "description": "Lists public events for a specified GitHub user (e.g., activities in repositories they watch or are involved in); the target user's profile must be public, and if blocked by the authenticated user, a 404 error is returned.",
+        "requiredInputs": [
+          "username"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_A_GITHUB_PAGES_SITE",
+      "to": "GITHUB_SET_STATUS_CHECK_CONTEXTS",
+      "label": "branch",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "branch",
+        "parentType": "PagesSource",
+        "path": "data.source.branch"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_A_GITHUB_PAGES_SITE",
+        "description": "Configures or updates GitHub Pages for a repository, setting build type and source; ensure a Pages workflow exists for 'workflow' `build_type`, or `source_branch` exists for 'legacy' or unspecified `build_type`. This action allows users to effectively manage their GitHub Pages site settings, specifying how the site is built and where the source files are located.",
+        "requiredInputs": [
+          "owner",
+          "repo"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_SET_STATUS_CHECK_CONTEXTS",
+        "description": "Replaces required status check contexts for a protected branch, requiring admin permissions; an empty `contexts` array removes all checks.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch",
+          "contexts"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
+      "to": "GITHUB_REMOVE_A_REPOSITORY_COLLABORATOR",
+      "label": "username",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "username",
+        "parentType": "WebhookConfig",
+        "path": "data.config.username"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
+        "description": "Retrieves the full configuration, including subscribed events and delivery settings, for an existing organization webhook.",
+        "requiredInputs": [
+          "org",
+          "hook_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_REMOVE_A_REPOSITORY_COLLABORATOR",
+        "description": "Removes a collaborator from a specified GitHub repository, provided the repository exists and the user is an existing collaborator.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "username"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_AN_ISSUE",
+      "to": "GITHUB_CHECK_TOKEN",
+      "label": "client_id",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "client_id",
+        "parentType": "GitHubApp",
+        "path": "data.performed_via_github_app.client_id"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_AN_ISSUE",
+        "description": "Creates a new issue in a GitHub repository, requiring the repository to exist and have issues enabled; specific fields like assignees, milestone, or labels may require push access.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "title"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_CHECK_TOKEN",
+        "description": "Checks if a GitHub App or OAuth access_token is valid for the specified client_id and retrieves its details, typically to verify its active status and grants. NOTE: This endpoint requires Basic Authentication using the OAuth App's client_id as username and client_secret as password. The access_token parameter must be an OAuth token issued by the specified OAuth App.",
+        "requiredInputs": [
+          "client_id",
+          "access_token"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_AN_ENVIRONMENT_VARIABLE",
+      "to": "GITHUB_UPDATE_USER_PROJECT_ITEM",
+      "label": "value",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "value",
+        "parentType": "GetAnEnvironmentVariableResponse",
+        "path": "data.value"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_AN_ENVIRONMENT_VARIABLE",
+        "description": "Retrieves a specific environment variable from a GitHub Actions environment by repository owner, repository name, environment name, and variable name.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "environment_name",
+          "name"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_UPDATE_USER_PROJECT_ITEM",
+        "description": "Tool to update a field value for an item in a user's GitHub ProjectV2. Use when you need to modify a field value of an existing project item.",
+        "requiredInputs": [
+          "projectId",
+          "itemId",
+          "fieldId",
+          "value"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_A_CHECK_RUN",
+      "to": "GITHUB_PRIVATELY_REPORT_A_SECURITY_VULNERABILITY",
+      "label": "summary",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "summary",
+        "parentType": "CheckRunOutput",
+        "path": "data.output.summary"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_A_CHECK_RUN",
+        "description": "Creates a new check run for a specific commit in a repository, used by external services to report status, detailed feedback, annotations, and images directly within the GitHub UI. NOTE: This endpoint requires GitHub App authentication - OAuth tokens and personal access tokens cannot create check runs.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "name",
+          "head_sha"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_PRIVATELY_REPORT_A_SECURITY_VULNERABILITY",
+        "description": "Privately reports a security vulnerability to a repository's maintainers. IMPORTANT: You cannot report vulnerabilities to repositories you own - this API is for third-party security researchers to report to other repositories. The target repository must have private vulnerability reporting enabled. Specify EITHER `severity` OR `cvss_vector_string`, but not both.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "summary",
+          "description"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_BRANCH_PROTECTION",
+      "to": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
+      "label": "apps",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "apps",
+        "parentType": "DismissalRestrictions",
+        "path": "data.requiredPullRequestReviews.dismissalRestrictions.apps"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_BRANCH_PROTECTION",
+        "description": "Retrieves branch protection settings for a specific, existing, and accessible branch in a GitHub repository; protection feature availability varies by GitHub product plan.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_ADD_APP_ACCESS_RESTRICTIONS",
+        "description": "Adds GitHub Apps to the list of apps allowed to push to a protected branch. The branch must already have protection rules with restrictions enabled. This endpoint only works for organization repositories, not personal repositories. Apps must be installed on the repository with 'contents' write permissions.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch",
+          "apps"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_AN_ISSUE_COMMENT",
+      "to": "GITHUB_DELETE_APP_AUTHORIZATION",
+      "label": "client_id",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "client_id",
+        "parentType": "GitHubApp",
+        "path": "data.performed_via_github_app.client_id"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_AN_ISSUE_COMMENT",
+        "description": "Creates a new comment on an existing GitHub issue or pull request within the specified repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "issue_number",
+          "body"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_DELETE_APP_AUTHORIZATION",
+        "description": "Deletes an OAuth application grant for a user, which revokes ALL OAuth tokens and their associated authorizations for the application. This endpoint is only accessible to OAuth App owners and requires Basic Authentication using the OAuth App's client_id and client_secret.",
+        "requiredInputs": [
+          "client_id",
+          "access_token"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_WORKFLOW_RUN_USAGE",
+      "to": "GITHUB_DOWNLOAD_JOB_LOGS_FOR_A_WORKFLOW_RUN",
+      "label": "job_id",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "job_id",
+        "parentType": "JobRun",
+        "path": "data.billable.MACOS.job_runs.job_id"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_WORKFLOW_RUN_USAGE",
+        "description": "Gets the billable time, in milliseconds, for a specific workflow run, detailing time spent on various operating systems.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "run_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_DOWNLOAD_JOB_LOGS_FOR_A_WORKFLOW_RUN",
+        "description": "Downloads logs for a specific job in a GitHub Actions workflow run, contingent on the repository's existence and the job ID being valid and having produced logs.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "job_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_LIST_ISSUE_EVENTS_FOR_A_REPOSITORY",
+      "to": "GITHUB_CHECK_IF_USER_CAN_BE_ASSIGNED_TO_ISSUE",
+      "label": "assignee",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "assignee",
+        "parentType": "Issue",
+        "path": "data.events.issue.assignee"
+      },
+      "producer": {
+        "slug": "GITHUB_LIST_ISSUE_EVENTS_FOR_A_REPOSITORY",
+        "description": "Lists all issue events (e.g., closed, reopened, assigned) for a specified repository.",
+        "requiredInputs": [
+          "owner",
+          "repo"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_CHECK_IF_USER_CAN_BE_ASSIGNED_TO_ISSUE",
+        "description": "Checks if a specified GitHub user can be assigned to a given issue within a repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "issue_number",
+          "assignee"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_OR_UPDATE_GITHUB_PAGES_SITE",
+      "to": "GITHUB_GET_COMMIT_SIGNATURE_PROTECTION",
+      "label": "branch",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "branch",
+        "parentType": "PagesSiteSource",
+        "path": "data.source.branch"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_OR_UPDATE_GITHUB_PAGES_SITE",
+        "description": "Tool to enable or update GitHub Pages configuration for a repository. Use when setting up GitHub Pages for static site deployment or modifying Pages settings like custom domains and HTTPS enforcement.",
+        "requiredInputs": [
+          "owner",
+          "repo"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_GET_COMMIT_SIGNATURE_PROTECTION",
+        "description": "Gets the commit signature protection status for a branch in a repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_A_PACKAGE_VERSION_FOR_THE_AUTHENTICATED_USER",
+      "to": "GITHUB_GET_A_RELEASE_BY_TAG_NAME",
+      "label": "tag",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "tag",
+        "parentType": "DockerMetadata",
+        "path": "data.metadata.docker.tag"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_A_PACKAGE_VERSION_FOR_THE_AUTHENTICATED_USER",
+        "description": "Retrieves detailed information for an existing specific package version associated with the authenticated user, identified by its type, name, and version ID.",
+        "requiredInputs": [
+          "package_type",
+          "package_name",
+          "package_version_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_GET_A_RELEASE_BY_TAG_NAME",
+        "description": "Gets a release from a GitHub repository by its tag name; the repository and a release with this tag must already exist.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "tag"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_OR_UPDATE_GITHUB_PAGES_SITE",
+      "to": "GITHUB_GET_USERS_WITH_ACCESS_TO_THE_PROTECTED_BRANCH",
+      "label": "branch",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "branch",
+        "parentType": "PagesSiteSource",
+        "path": "data.source.branch"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_OR_UPDATE_GITHUB_PAGES_SITE",
+        "description": "Tool to enable or update GitHub Pages configuration for a repository. Use when setting up GitHub Pages for static site deployment or modifying Pages settings like custom domains and HTTPS enforcement.",
+        "requiredInputs": [
+          "owner",
+          "repo"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_GET_USERS_WITH_ACCESS_TO_THE_PROTECTED_BRANCH",
+        "description": "Lists users with explicit push access to a protected branch, provided its protection rule restricts pushes to specific users.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_A_GITHUB_APP_FROM_A_MANIFEST",
+      "to": "GITHUB_DELETE_APP_AUTHORIZATION",
+      "label": "client_id",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "client_id",
+        "parentType": "CreateAGithubAppFromAManifestResponse",
+        "path": "data.client_id"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_A_GITHUB_APP_FROM_A_MANIFEST",
+        "description": "Use this action to complete the GitHub App Manifest flow (step 3 of 3) by exchanging the temporary authorization `code` for the app's full configuration, including credentials and private key. The code is provided via redirect URL after creating the app through GitHub's web interface and must be used within 1 hour.",
+        "requiredInputs": [
+          "code"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_DELETE_APP_AUTHORIZATION",
+        "description": "Deletes an OAuth application grant for a user, which revokes ALL OAuth tokens and their associated authorizations for the application. This endpoint is only accessible to OAuth App owners and requires Basic Authentication using the OAuth App's client_id and client_secret.",
+        "requiredInputs": [
+          "client_id",
+          "access_token"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_CODE_SCANNING_ANALYSIS",
+      "to": "GITHUB_GET_INFORMATION_ABOUT_A_SARIF_UPLOAD",
+      "label": "sarif_id",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "sarif_id",
+        "parentType": "GetCodeScanningAnalysisResponse",
+        "path": "data.sarif_id"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_CODE_SCANNING_ANALYSIS",
+        "description": "Retrieves detailed information for a specific code scanning analysis on an accessible repository, identified by its `analysis_id`.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "analysis_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_GET_INFORMATION_ABOUT_A_SARIF_UPLOAD",
+        "description": "Retrieves detailed information, including processing status and results URL, about a specific SARIF (Static Analysis Results Interchange Format) upload for a repository, uniquely identified by its sarif_id.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "sarif_id"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_OR_UPDATE_GITHUB_PAGES_SITE",
+      "to": "GITHUB_COMMIT_MULTIPLE_FILES",
+      "label": "branch",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "branch",
+        "parentType": "PagesSiteSource",
+        "path": "data.source.branch"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_OR_UPDATE_GITHUB_PAGES_SITE",
+        "description": "Tool to enable or update GitHub Pages configuration for a repository. Use when setting up GitHub Pages for static site deployment or modifying Pages settings like custom domains and HTTPS enforcement.",
+        "requiredInputs": [
+          "owner",
+          "repo"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_COMMIT_MULTIPLE_FILES",
+        "description": "Tool to atomically create, update, or delete multiple files in a GitHub repository as a single commit. Uses Git Data APIs to avoid SHA mismatch conflicts that occur with the Contents API when multiple files are modified in parallel. Use when you need to make multi-file changes reliably. BRANCH CREATION: When committing to a new branch (e.g., 'fix/my-fix' or 'feature/new-feature'), you MUST provide 'base_branch' (typically 'main' or 'master') to create the branch from. If the branch already exists, base_branch is not needed. This action handles race conditions automatically: if the branch is updated by another commit between fetching the HEAD and updating the reference (resulting in a 422 'not a fast forward' error), the action will retry by refetching the HEAD and rebasing changes. Use max_retries to control this behavior.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch",
+          "message"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_INTERACTION_RESTRICTIONS_FOR_A_REPOSITORY",
+      "to": "GITHUB_SET_INTERACTION_RESTRICTIONS_FOR_YOUR_PUBLIC_REPOS",
+      "label": "limit",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "limit",
+        "parentType": "GetInteractionRestrictionsForARepositoryResponse",
+        "path": "data.limit"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_INTERACTION_RESTRICTIONS_FOR_A_REPOSITORY",
+        "description": "Retrieves active interaction restrictions for a repository, detailing which user groups are limited from activities like commenting or creating pull requests, and when these restrictions expire.",
+        "requiredInputs": [
+          "owner",
+          "repo"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_SET_INTERACTION_RESTRICTIONS_FOR_YOUR_PUBLIC_REPOS",
+        "description": "Sets or updates temporary interaction restrictions for all public repositories owned by the authenticated user, overriding any repository-specific limits.",
+        "requiredInputs": [
+          "limit"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
+      "to": "GITHUB_LIST_SOCIAL_ACCOUNTS_FOR_A_USER",
+      "label": "username",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "username",
+        "parentType": "WebhookConfig",
+        "path": "data.config.username"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
+        "description": "Retrieves the full configuration, including subscribed events and delivery settings, for an existing organization webhook.",
+        "requiredInputs": [
+          "org",
+          "hook_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_LIST_SOCIAL_ACCOUNTS_FOR_A_USER",
+        "description": "Lists social media accounts publicly linked to an existing GitHub user's profile.",
+        "requiredInputs": [
+          "username"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_GRAPHQL_RATE_LIMIT",
+      "to": "GITHUB_SET_INTERACTION_RESTRICTIONS_FOR_AN_ORGANIZATION",
+      "label": "limit",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "limit",
+        "parentType": "RateLimitData",
+        "path": "data.rate_limit.limit"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_GRAPHQL_RATE_LIMIT",
+        "description": "Tool to retrieve the authenticated client's GitHub GraphQL API rate limit information. Use when you need to check remaining quota, current usage, or reset time for GraphQL requests.",
+        "requiredInputs": []
+      },
+      "consumer": {
+        "slug": "GITHUB_SET_INTERACTION_RESTRICTIONS_FOR_AN_ORGANIZATION",
+        "description": "Limits interactions (comments, new issues, PRs) in an organization's public repositories by user type and duration, typically to mitigate high traffic or unwanted activity.",
+        "requiredInputs": [
+          "org",
+          "limit"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_A_REPOSITORY_RULESET",
+      "to": "GITHUB_CREATE_A_REPOSITORY_RULESET",
+      "label": "enforcement",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "enforcement",
+        "parentType": "GetARepositoryRulesetResponse",
+        "path": "data.enforcement"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_A_REPOSITORY_RULESET",
+        "description": "Retrieves a specific repository ruleset by its ID; if `includes_parents` is true, the search for this `ruleset_id` also extends to rulesets from parent organizations.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "ruleset_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_CREATE_A_REPOSITORY_RULESET",
+        "description": "Creates a uniquely named ruleset for a repository, defining rules for branches or tags with specified enforcement, conditions, and bypass actors.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "name",
+          "enforcement"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_OR_UPDATE_GITHUB_PAGES_SITE",
+      "to": "GITHUB_UPDATE_PULL_REQUEST_REVIEW_PROTECTION",
+      "label": "branch",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "branch",
+        "parentType": "PagesSiteSource",
+        "path": "data.source.branch"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_OR_UPDATE_GITHUB_PAGES_SITE",
+        "description": "Tool to enable or update GitHub Pages configuration for a repository. Use when setting up GitHub Pages for static site deployment or modifying Pages settings like custom domains and HTTPS enforcement.",
+        "requiredInputs": [
+          "owner",
+          "repo"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_UPDATE_PULL_REQUEST_REVIEW_PROTECTION",
+        "description": "Updates pull request review protection settings (e.g., required approvals, review dismissal, bypass allowances) for a branch; branch protection features must be available for the repository.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_AN_ISSUE",
+      "to": "GITHUB_DELETE_APP_TOKEN",
+      "label": "client_id",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "client_id",
+        "parentType": "GitHubApp",
+        "path": "data.performed_via_github_app.client_id"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_AN_ISSUE",
+        "description": "Creates a new issue in a GitHub repository, requiring the repository to exist and have issues enabled; specific fields like assignees, milestone, or labels may require push access.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "title"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_DELETE_APP_TOKEN",
+        "description": "Revokes a single OAuth access token for an OAuth App or GitHub App with OAuth authorization. IMPORTANT: This endpoint requires Basic Authentication using the OAuth App's client_id as username and client_secret as password. It CANNOT be called with personal access tokens, GitHub App installation tokens, or any other token type. You must be the OAuth App owner to use this endpoint.",
+        "requiredInputs": [
+          "client_id",
+          "access_token"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_A_GITHUB_PAGES_SITE",
+      "to": "GITHUB_GET_ACCESS_RESTRICTIONS",
+      "label": "branch",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "branch",
+        "parentType": "PagesSource",
+        "path": "data.source.branch"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_A_GITHUB_PAGES_SITE",
+        "description": "Configures or updates GitHub Pages for a repository, setting build type and source; ensure a Pages workflow exists for 'workflow' `build_type`, or `source_branch` exists for 'legacy' or unspecified `build_type`. This action allows users to effectively manage their GitHub Pages site settings, specifying how the site is built and where the source files are located.",
+        "requiredInputs": [
+          "owner",
+          "repo"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_GET_ACCESS_RESTRICTIONS",
+        "description": "Lists users, teams, and GitHub Apps with push access to a branch; this branch must be protected in repository settings for detailed restrictions, otherwise expect a 404 or empty response.",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_CREATE_A_GITHUB_PAGES_SITE",
+      "to": "GITHUB_SET_TEAM_ACCESS_RESTRICTIONS",
+      "label": "branch",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "branch",
+        "parentType": "PagesSource",
+        "path": "data.source.branch"
+      },
+      "producer": {
+        "slug": "GITHUB_CREATE_A_GITHUB_PAGES_SITE",
+        "description": "Configures or updates GitHub Pages for a repository, setting build type and source; ensure a Pages workflow exists for 'workflow' `build_type`, or `source_branch` exists for 'legacy' or unspecified `build_type`. This action allows users to effectively manage their GitHub Pages site settings, specifying how the site is built and where the source files are located.",
+        "requiredInputs": [
+          "owner",
+          "repo"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_SET_TEAM_ACCESS_RESTRICTIONS",
+        "description": "Replaces the list of teams with push access to a protected branch. This action sets (replaces) the teams that have push access to a protected branch. Unlike 'Add team access restrictions' (POST), this action replaces the entire list rather than adding to it. Use an empty list to remove all team restrictions. Prerequisites: - The repository must be owned by an organization (not a personal account) - The branch must have protection rules enabled - The branch protection must have restrictions configured - The teams must exist in the organization and have repository access",
+        "requiredInputs": [
+          "owner",
+          "repo",
+          "branch",
+          "teams"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
+      "to": "GITHUB_LIST_REPOSITORIES_STARRED_BY_A_USER",
+      "label": "username",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "username",
+        "parentType": "WebhookConfig",
+        "path": "data.config.username"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
+        "description": "Retrieves the full configuration, including subscribed events and delivery settings, for an existing organization webhook.",
+        "requiredInputs": [
+          "org",
+          "hook_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_LIST_REPOSITORIES_STARRED_BY_A_USER",
+        "description": "Lists repositories a valid and existing GitHub user has starred.",
+        "requiredInputs": [
+          "username"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_INTERACTION_RESTRICTIONS_FOR_AN_ORGANIZATION",
+      "to": "GITHUB_SET_INTERACTION_RESTRICTIONS_FOR_AN_ORGANIZATION",
+      "label": "limit",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "limit",
+        "parentType": "GetInteractionRestrictionsForAnOrganizationResponse",
+        "path": "data.limit"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_INTERACTION_RESTRICTIONS_FOR_AN_ORGANIZATION",
+        "description": "Retrieves interaction restrictions for an organization, showing which GitHub user types can interact with its public repositories and when restrictions expire; returns an empty response if no restrictions are set.",
+        "requiredInputs": [
+          "org"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_SET_INTERACTION_RESTRICTIONS_FOR_AN_ORGANIZATION",
+        "description": "Limits interactions (comments, new issues, PRs) in an organization's public repositories by user type and duration, typically to mitigate high traffic or unwanted activity.",
+        "requiredInputs": [
+          "org",
+          "limit"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_A_PACKAGE_VERSION_FOR_A_USER",
+      "to": "GITHUB_GET_LICENSE",
+      "label": "license",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "license",
+        "parentType": "GetAPackageVersionForAUserResponse",
+        "path": "data.license"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_A_PACKAGE_VERSION_FOR_A_USER",
+        "description": "Retrieves a specific public package version associated with a GitHub user.",
+        "requiredInputs": [
+          "package_type",
+          "package_name",
+          "package_version_id",
+          "username"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_GET_LICENSE",
+        "description": "Call this action to retrieve comprehensive details for a specific software license recognized by GitHub, using its unique license key.",
+        "requiredInputs": [
+          "license"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    },
+    {
+      "from": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
+      "to": "GITHUB_LIST_PROJECT_VIEW_ITEMS_FOR_USER",
+      "label": "username",
+      "heuristicScore": 4,
+      "justifyingField": {
+        "name": "username",
+        "parentType": "WebhookConfig",
+        "path": "data.config.username"
+      },
+      "producer": {
+        "slug": "GITHUB_GET_AN_ORGANIZATION_WEBHOOK",
+        "description": "Retrieves the full configuration, including subscribed events and delivery settings, for an existing organization webhook.",
+        "requiredInputs": [
+          "org",
+          "hook_id"
+        ]
+      },
+      "consumer": {
+        "slug": "GITHUB_LIST_PROJECT_VIEW_ITEMS_FOR_USER",
+        "description": "Tool to list items for a user's GitHub Projects (v2) view. Use when you need to retrieve items from a specific view of a user's project. Supports pagination and field filtering.",
+        "requiredInputs": [
+          "username",
+          "project_number",
+          "view_number"
+        ]
+      },
+      "verdict": null,
+      "notes": ""
+    }
+  ]
+}
