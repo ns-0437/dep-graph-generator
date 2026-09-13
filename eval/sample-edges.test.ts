@@ -1,7 +1,7 @@
-import { test } from "node:test";
+import { test, before } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -12,6 +12,22 @@ import { join } from "node:path";
  * moment it happens -- exactly the class of bug sample-unresolved.ts had for one commit
  * (see CLAUDE.md's bug list) -- rather than only when someone next runs it by hand.
  */
+
+// sample-edges.ts reads dependency_graph.json (gitignored, generated on demand), unlike
+// sample-unresolved.ts which re-derives everything from github_catalog.json directly -- so
+// this file, alone among the eval tests, needs it to exist first. Passed locally in earlier
+// testing purely by accident, because a stale dependency_graph.json was already sitting in
+// the working directory from unrelated manual runs; a genuinely clean checkout (a fresh CI
+// runner) has no such file until something generates it, so these tests failed there with
+// ENOENT the moment they actually ran against a clean checkout. Generating it explicitly
+// here makes the tests hermetic instead of accidentally depending on leftover local state.
+before(() => {
+  if (!existsSync("dependency_graph.json")) {
+    const result = spawnSync("node", ["--import", "tsx", "src/generate.ts", "github_catalog.json"], { encoding: "utf-8" });
+    assert.equal(result.status, 0, `failed to generate dependency_graph.json: ${result.stderr}`);
+  }
+});
+
 test("sample-edges.ts runs end-to-end against the real catalog and produces a well-shaped sample", () => {
   const dir = mkdtempSync(join(tmpdir(), "sample-edges-test-"));
   const outPath = join(dir, "sample.json");
