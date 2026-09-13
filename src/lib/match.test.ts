@@ -106,6 +106,13 @@ test("isGeneric: false for a rare field name", () => {
   assert.equal(isGeneric("node_id", leafFreq, 25), false);
 });
 
+test("isGeneric: false for a field name that appears in no tool's output at all", () => {
+  // leafFrequency.get(key) returns undefined here (not an empty Set) -- the ?? 0 fallback,
+  // distinct from "appears but rarely" above.
+  const leafFreq = buildLeafFrequency(new Map([["TOOL_0", indexFields([outField("node_id", "Whatever")])]]));
+  assert.equal(isGeneric("completely_unseen_field", leafFreq, 25), false);
+});
+
 test("indexFields precomputes the same tokens tokenize() would produce", () => {
   const [f] = indexFields([outField("issue_number", "Issue")]);
   assert.deepEqual(f!.tokens, tokenize("issue_number"));
@@ -135,6 +142,22 @@ test("isContextField: false for a field required by only a handful of tools in a
   const requiredByTool: InputField[][] = Array.from({ length: 25 }, () => [input("issue_number")]);
   const freq = buildInputFrequency(requiredByTool);
   assert.equal(isContextField("issue_number", freq, totalTools), false);
+});
+
+test("isContextField: false for a name that never appears in inputFrequency at all", () => {
+  // inputFrequency.get(name) returns undefined here -- the ?? 0 fallback, distinct from a
+  // name that appears but rarely.
+  const freq = buildInputFrequency([[input("owner")]]);
+  assert.equal(isContextField("completely_unseen_field", freq, 893), false);
+});
+
+test("isContextField: short-circuits on minCount before even computing the ratio", () => {
+  // A field required by only 3 tools out of a small total (3/10 = 30%, well past
+  // CONTEXT_FIELD_RATIO) must still be false, because it never reaches minCount -- the
+  // `count >= minCount` check must reject it on its own, not rely on the ratio side.
+  const requiredByTool: InputField[][] = Array.from({ length: 3 }, () => [input("some_field")]);
+  const freq = buildInputFrequency(requiredByTool);
+  assert.equal(isContextField("some_field", freq, 10), false);
 });
 
 test("isCircularProducer: true when the producer itself requires the same field", () => {
