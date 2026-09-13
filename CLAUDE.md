@@ -280,6 +280,13 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   separate task (major versions can carry breaking API changes — the OpenAI SDK's call
   shape, or new strict-mode TS errors) that deserves its own dedicated testing pass, not an
   incidental version bump folded into unrelated work.)
+- (Checked, deliberately not acted on: `--legacy-peer-deps` in `generator.json`'s `build`
+  step and CI's install step may no longer be load-bearing — a plain `npm install` in a
+  clean checkout (fresh `node_modules`, no lockfile) succeeded with 0 conflicts and 0
+  vulnerabilities, verified directly rather than assumed. Not removing it: `generator.json`
+  is the original assessment's fixed build/run contract, kept verbatim on purpose (see the
+  file-structure section above), so it isn't touched even for a plausible simplification;
+  keeping CI's install step matching it avoids the two silently diverging over time.)
 
 **Bugs found by actually measuring correctness, not just that the generator runs** (see
 [`eval/RESULTS.md`](eval/RESULTS.md) for the full precision/recall evaluation this came from):
