@@ -153,6 +153,75 @@ test("flattenOutputs treats a nullable-primitive anyOf (string | null) as a leaf
   assert.deepEqual(fields, [{ name: "description", parentType: "FieldOption", path: "data.description" }]);
 });
 
+test("flattenOutputs works when a tool's schema has no \$defs at all", () => {
+  // Not every catalog entry uses $ref/$defs -- some inline their whole response shape
+  // directly under `data`. schema.$defs ?? {} must not throw when $defs is simply absent.
+  const fields = flattenOutputs(
+    tool({
+      properties: {
+        data: { type: "object", properties: { total_count: { type: "integer" } } },
+      },
+    }),
+  );
+  assert.deepEqual(fields, [{ name: "total_count", parentType: "root", path: "data.total_count" }]);
+});
+
+test("flattenOutputs treats a dangling \$ref (missing from \$defs) as an empty object rather than throwing", () => {
+  const fields = flattenOutputs(
+    tool({
+      properties: {
+        data: { $ref: "#/$defs/DoesNotExist" },
+      },
+      $defs: {},
+    }),
+  );
+  assert.deepEqual(fields, []);
+});
+
+test("flattenOutputs stops descending past MAX_DEPTH instead of recursing forever", () => {
+  // A long but non-cyclic $ref chain (Level0 -> Level1 -> ... -> Level20), each introducing
+  // a genuinely new type name so the self-referential-\$ref guard (which only stops an
+  // *already-visited* type) doesn't kick in first. Only fields within MAX_DEPTH (12) should
+  // be collected; the leaf past that depth must be silently dropped, not crash or hang.
+  const LEVELS = 20;
+  const defs: Record<string, any> = {};
+  for (let i = 0; i < LEVELS; i++) {
+    defs[`Level${i}`] = {
+      type: "object",
+      properties: {
+        [`field${i}`]: { type: "string" },
+        next: i + 1 < LEVELS ? { $ref: `#/$defs/Level${i + 1}` } : { type: "string" },
+      },
+    };
+  }
+  const fields = flattenOutputs(
+    tool({
+      properties: { data: { $ref: "#/$defs/Level0" } },
+      $defs: defs,
+    }),
+  );
+  const names = fields.map((f) => f.name);
+  assert.ok(names.includes("field0"), "shallow fields must still be collected");
+  assert.ok(!names.includes(`field${LEVELS - 1}`), "fields past MAX_DEPTH must be dropped, not collected");
+});
+
+test("flattenOutputs treats an array nested past MAX_DEPTH as a leaf instead of recursing forever", () => {
+  // isEffectivelyContainer has its own depth guard, separate from walk's -- a field whose
+  // shape is array-of-array-of-array-... past MAX_DEPTH levels deep must fall back to being
+  // recorded as an (admittedly useless) leaf rather than infinite-recursing to find out
+  // whether it's "really" a container.
+  let deepArray: any = { type: "string" };
+  for (let i = 0; i < 20; i++) deepArray = { type: "array", items: deepArray };
+  const fields = flattenOutputs(
+    tool({
+      properties: {
+        data: { type: "object", properties: { nested: deepArray } },
+      },
+    }),
+  );
+  assert.deepEqual(fields, [{ name: "nested", parentType: "root", path: "data.nested" }]);
+});
+
 test("flattenOutputs handles oneOf the same way as anyOf", () => {
   const fields = flattenOutputs(
     tool({
