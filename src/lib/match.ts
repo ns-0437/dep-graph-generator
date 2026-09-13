@@ -55,6 +55,33 @@ export function isGeneric(
 }
 
 /**
+ * Domain abbreviations that name the same concept as a catalog type name but share no
+ * token with it under plain string tokenization -- found via eval/unresolved-sample.ts
+ * hand-labeling (see eval/RESULTS.md): `hook_id` genuinely means the same thing as
+ * `Webhook.id`, and `pat_id`/`pat_ids` genuinely mean the same thing as `Token.id`
+ * (confirmed directly against the catalog; the catalog's own field description for
+ * GITHUB_UPDATE_RESOURCE_ACCESS_WITH_TOKENS even names GITHUB_LIST_ORG_RESOURCE_ACCESS_TOKENS
+ * as the source of pat ids). Both were real, verified misses, not guesses -- kept as a small,
+ * explicit map rather than fuzzy/edit-distance matching, which would risk conflating
+ * unrelated short tokens that happen to look similar.
+ */
+const TOKEN_SYNONYMS: Readonly<Record<string, string>> = {
+  hook: "webhook",
+  pat: "token",
+};
+
+function canonicalToken(t: string): string {
+  return TOKEN_SYNONYMS[t] ?? t;
+}
+
+/** True if every token in `remaining` matches some token in `typeTokens`, allowing the
+ * known abbreviation synonyms above in either direction (so "hook" matches "webhook" and
+ * vice versa) without changing behavior for any token that isn't in that map. */
+function remainingMatchesType(remaining: string[], typeTokens: string[]): boolean {
+  return remaining.every((t) => typeTokens.some((tt) => canonicalToken(t) === canonicalToken(tt)));
+}
+
+/**
  * Score a required input field against one candidate output leaf field (pre-indexed, see
  * IndexedField). The core idea: `issue_number` tokenizes to {issue, number}. If the leaf
  * field's tokens ({number}) are a subset of the input's tokens, and the *leftover* tokens
@@ -71,7 +98,7 @@ export function matchScore(
   if (!leafTokens.every((t) => input.tokens.includes(t))) return 0;
   const remaining = input.tokens.filter((t) => !leafTokens.includes(t));
   if (remaining.length === 0) return isGeneric(indexed.field.name, leafFrequency, genericThreshold) ? 1 : 4;
-  return remaining.every((t) => indexed.typeTokens.includes(t)) ? 5 : 0;
+  return remainingMatchesType(remaining, indexed.typeTokens) ? 5 : 0;
 }
 
 export function buildInputFrequency(requiredByTool: InputField[][]): Map<string, number> {

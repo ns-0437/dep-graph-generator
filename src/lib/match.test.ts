@@ -65,6 +65,34 @@ test("matchScore: exact match with a generic (very common) field name scores 1, 
   assert.ok(score < 4, "score 1 must fall below the acceptance threshold used in generate.ts");
 });
 
+test("matchScore: hook_id matches Webhook.id via the hook/webhook synonym", () => {
+  // Real, verified miss from eval/unresolved-sample.json labeling: GITHUB_LIST_REPOSITORY_WEBHOOKS's
+  // Webhook.id is exactly what hook_id-requiring consumers need, but "hook" shares no token
+  // with "webhook" under plain tokenization. See eval/RESULTS.md.
+  const leafFreq = buildLeafFrequency(new Map([["X", indexFields([outField("id", "Webhook")])]]));
+  const score = matchScore(input("hook_id"), indexed("id", "Webhook"), leafFreq);
+  assert.equal(score, 5);
+});
+
+test("matchScore: pat_id matches Token.id via the pat/token synonym", () => {
+  // Same class of verified miss as hook_id: GITHUB_LIST_ORG_RESOURCE_ACCESS_TOKENS's Token.id
+  // is what pat_id/pat_ids-requiring consumers need. The catalog's own field description for
+  // GITHUB_UPDATE_RESOURCE_ACCESS_WITH_TOKENS names that exact producer tool.
+  const leafFreq = buildLeafFrequency(new Map([["X", indexFields([outField("id", "Token")])]]));
+  const score = matchScore(input("pat_id"), indexed("id", "Token"), leafFreq);
+  assert.equal(score, 5);
+});
+
+test("matchScore: the hook/pat synonyms don't fire for unrelated types", () => {
+  // Guards against the synonym map being too loose -- "hook_id" must still be rejected
+  // against a type that has nothing to do with webhooks, and "pat_id" against a type that
+  // has nothing to do with tokens.
+  const hookFreq = buildLeafFrequency(new Map([["X", indexFields([outField("id", "Milestone")])]]));
+  assert.equal(matchScore(input("hook_id"), indexed("id", "Milestone"), hookFreq), 0);
+  const patFreq = buildLeafFrequency(new Map([["X", indexFields([outField("id", "Repository")])]]));
+  assert.equal(matchScore(input("pat_id"), indexed("id", "Repository"), patFreq), 0);
+});
+
 test("isGeneric: true once a leaf name is produced by more tools than the threshold", () => {
   const outputsByTool = new Map(
     Array.from({ length: 26 }, (_, i) => [`TOOL_${i}`, indexFields([outField("name", "Whatever")])]),
