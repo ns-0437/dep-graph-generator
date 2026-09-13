@@ -46,3 +46,11 @@ test("compute-recall warns on stderr about unlabeled entries but still reports t
   assert.match(stderr, /WARNING: 1 of 2 entries have no verdict yet/);
   assert.match(stdout, /1 of 2 unresolved fields sampled: 1 real_miss, 0 true_negative, 0 ambiguous -> miss rate 100\.0%/);
 });
+
+test("compute-recall defaults to eval/unresolved-sample.json when no path argument is given", () => {
+  // Real, committed, already-labeled sample -- read-only, safe to run against directly.
+  // Exercises the default-path fallback every other test bypasses.
+  const result = spawnSync("node", ["--import", "tsx", "eval/compute-recall.ts"], { encoding: "utf-8" });
+  assert.equal(result.status, 0, `compute-recall.ts exited ${result.status}: ${result.stderr}`);
+  assert.match(result.stdout, /unresolved fields sampled/);
+});
