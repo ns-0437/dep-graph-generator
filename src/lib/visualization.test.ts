@@ -35,6 +35,18 @@ test("renderVisualizationHtml produces exactly one script tag even with a malici
   assert.equal((html.match(/<\/script>/g) || []).length, 1);
 });
 
+test("renderVisualizationHtml scales the canvas backing buffer by devicePixelRatio", () => {
+  // Regression guard for a real bug (see git history): the canvas's drawing-buffer
+  // resolution must be scaled by devicePixelRatio and matched with a ctx transform, or
+  // the graph renders blurry on any HiDPI/retina display. This can't be verified by
+  // executing the canvas logic here (no DOM/canvas in Node), but a revert that dropped
+  // the scaling entirely would also drop these specific tokens from the embedded script.
+  const html = renderVisualizationHtml({ nodes: [], edges: [] });
+  assert.ok(html.includes("devicePixelRatio"), "must read devicePixelRatio somewhere");
+  assert.ok(html.includes("cssWidth") && html.includes("cssHeight"), "must track logical size separately from the (DPR-scaled) canvas buffer size");
+  assert.ok(html.includes("ctx.setTransform"), "must apply a matching context transform so drawing code stays in CSS-pixel units");
+});
+
 test("renderVisualizationHtml still embeds normal graph data intact", () => {
   const html = renderVisualizationHtml({
     nodes: [{ id: "GITHUB_CREATE_AN_ISSUE", service: "issues" }],
