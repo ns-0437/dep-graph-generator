@@ -45,12 +45,18 @@ test("loadCatalog accepts a bare array", () => {
 });
 
 test("loadCatalog accepts { tools: [...] } and { items: [...] }", () => {
-  const path = "test-fixtures/tmp_wrapped_catalog.json";
-  writeFileSync(path, JSON.stringify({ tools: [{ slug: "A" }] }));
+  // Was previously only exercising the "tools" shape despite its name -- c8's branch
+  // coverage report caught that the "items" branch (catalog.ts) had never actually run.
+  const toolsPath = "test-fixtures/tmp_wrapped_tools_catalog.json";
+  const itemsPath = "test-fixtures/tmp_wrapped_items_catalog.json";
+  writeFileSync(toolsPath, JSON.stringify({ tools: [{ slug: "A" }] }));
+  writeFileSync(itemsPath, JSON.stringify({ items: [{ slug: "B" }] }));
   try {
-    assert.deepEqual(loadCatalog(path), [{ slug: "A" }]);
+    assert.deepEqual(loadCatalog(toolsPath), [{ slug: "A" }]);
+    assert.deepEqual(loadCatalog(itemsPath), [{ slug: "B" }]);
   } finally {
-    unlinkSync(path);
+    unlinkSync(toolsPath);
+    unlinkSync(itemsPath);
   }
 });
 
