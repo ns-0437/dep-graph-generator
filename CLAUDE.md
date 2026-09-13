@@ -197,9 +197,19 @@ Known limitations (heuristic can't catch these):
 
 ## Testing & CI
 
-- `npm run typecheck` — `tsc` in strict mode (+ `noUncheckedIndexedAccess`). There was no
-  `tsconfig.json` at all until this was added; TypeScript had never actually been
-  type-checked in this project before that (tsx only transpiles, it doesn't check types).
+- `npm run typecheck` — `tsc` in strict mode, plus `noUncheckedIndexedAccess`,
+  `noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns`, `noFallthroughCasesInSwitch`,
+  and `exactOptionalPropertyTypes`. There was no `tsconfig.json` at all until this was added;
+  TypeScript had never actually been type-checked in this project before that (tsx only
+  transpiles, it doesn't check types). The last five flags were added in a later pass,
+  verified one at a time against real hits rather than turned on as a group and assumed
+  clean: `noUnusedLocals` caught a genuinely dead import in `eval/sample-edges.ts`
+  (`SCORE_THRESHOLD`, referenced only inside a log string, never in code), and
+  `exactOptionalPropertyTypes` caught `generate.ts` explicitly assigning `undefined` to
+  `GraphNode.service` (an optional property) instead of omitting the key -- fixed without
+  changing runtime behavior (regenerated `dependency_graph.json`/`graph.html` and diffed
+  against the pre-fix output: byte-identical, since `JSON.stringify` already drops
+  `undefined`-valued keys either way).
 - `npm test` — 92 tests via Node's built-in test runner (`node --test`, no extra framework
   dependency): unit tests for every `lib/*` module and every `eval/*`/`eval/lib/*` script,
   end-to-end tests calling the real exported `generate()` (against the synthetic Slack
