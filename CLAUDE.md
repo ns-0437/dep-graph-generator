@@ -142,21 +142,28 @@ Current thresholds in `src/generate.ts` (tune here if quality needs adjusting):
   field required by 1 of 2 tools (50%) as "boilerplate", producing 0 edges — a field needing
   a majority of a handful of tools isn't evidence of anything without a real sample size.
 - `MAX_PRODUCERS_PER_FIELD = 3` — measured, not just assumed, how much work this cap
-  actually does: across the real catalog, fields with at least one candidate have an
-  **average of ~15 producers tied at the best score**, and one field has **197** tied
-  producers. Ties are broken by catalog iteration order (stable sort, so whichever 3 happen
-  to appear first), which is arbitrary but not wrong — I checked whether removing the cap
-  (keeping every producer tied at the best score) would be a real improvement, and it isn't:
-  that's a ~15x edge-count increase on average, up to 197x for the worst field, which is
-  noise amplification, not more signal, since a tie at the ceiling score means every tied
-  candidate is equally well-evidenced already. Concretely: `GITHUB_LIST_REPOSITORY_ISSUES`
-  — the exact tool the original README names as its `issue_number` example — is one of 18
-  tools tied for that field, and isn't one of the 3 the cap keeps (`GITHUB_ADD_ASSIGNEES_
-  TO_AN_ISSUE`, `GITHUB_CLOSE_ISSUE`, `GITHUB_CREATE_AN_ISSUE` are, by catalog order).
-  `issue_number` edges into `GITHUB_CREATE_AN_ISSUE_COMMENT` are still correctly present
-  (the README's own text already hedges this: "there could be other ways to get an
-  issue_number too") — just not from that specific producer. Recording this because it's
-  the kind of thing worth knowing before citing a specific edge as a worked example.
+  actually does. The numbers below were measured before the `isCircularProducer` fix (see
+  the "bugs found by actually measuring correctness" list): fields with at least one
+  candidate had an **average of ~15 producers tied at the best score**, one field had
+  **197** tied producers, and the specific worked example below was one of **18** tied
+  candidates. Excluding circular producers shrank that pool a lot — the same `issue_number`
+  ->`GITHUB_CREATE_AN_ISSUE_COMMENT` case now has only **8** non-circular candidates, because
+  most of the original 18 were exactly the "single-entity action echoes its own id back"
+  pattern that fix targets. Re-verified directly against the current graph rather than
+  trusting the older number: ties are still broken by catalog iteration order (stable sort,
+  whichever 3 happen to appear first), still arbitrary but not wrong, and removing the cap
+  entirely is still not a real improvement for the same reason as before (a tie at the
+  ceiling score means every tied candidate is equally well-evidenced already, so keeping
+  all of them is noise amplification, not more signal). Concretely, right now:
+  `GITHUB_LIST_REPOSITORY_ISSUES` — the exact tool the original README names as its
+  `issue_number` example — is present in the (now smaller) candidate pool but still isn't
+  one of the 3 the cap keeps (`GITHUB_CREATE_AN_ISSUE`, `GITHUB_GET_AN_ISSUE_EVENT`,
+  `GITHUB_LIST_ISSUE_EVENTS_FOR_A_REPOSITORY` are, by catalog order). `issue_number` edges
+  into `GITHUB_CREATE_AN_ISSUE_COMMENT` are still correctly present (the README's own text
+  already hedges this: "there could be other ways to get an issue_number too") — just not
+  from that specific producer. Recording this, and re-checking it after each fix that
+  changes the candidate pool, because it's the kind of thing worth knowing before citing a
+  specific edge as a worked example.
 - Against `github_catalog.json`: 2025 required fields total, 1073 excluded as context, 229
   unresolved by heuristics and handed to the LLM. 893 nodes (provenance 1.0), 1894 edges
   heuristically, plus whatever the LLM resolves on top when credentials are present. (These
