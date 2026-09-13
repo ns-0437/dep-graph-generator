@@ -42,7 +42,8 @@ export async function generate(tools: Tool[], client?: ChatClient): Promise<Grap
     const id = slugOf(t);
     if (!id) continue;
     toolBySlug.set(id, t);
-    nodes.push({ id, service: guessService(id) });
+    const service = guessService(id);
+    nodes.push(service !== undefined ? { id, service } : { id });
   }
 
   const outputsByTool = new Map<string, OutField[]>();
