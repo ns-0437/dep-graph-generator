@@ -27,4 +27,13 @@ echo "pre-commit: type-checking the staged snapshot..."
 npm run typecheck
 
 echo "pre-commit: running tests against the staged snapshot..."
-npm test
+TEST_LOG=$(mktemp)
+if npm test > "$TEST_LOG" 2>&1; then
+  echo "pre-commit: tests passed ($(grep -c '^ok ' "$TEST_LOG") ok)."
+  rm -f "$TEST_LOG"
+else
+  echo "pre-commit: tests FAILED against the staged snapshot -- full output follows:" >&2
+  cat "$TEST_LOG" >&2
+  rm -f "$TEST_LOG"
+  exit 1
+fi
