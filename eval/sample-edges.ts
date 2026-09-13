@@ -6,8 +6,11 @@
  * the producer justified it, and at what heuristic score) purely for human review, using the
  * same lib functions generate.ts itself uses.
  *
- * Run: node --import tsx eval/sample-edges.ts
- * Output: eval/sample.json (each entry has verdict: null until hand-labeled).
+ * Run: node --import tsx eval/sample-edges.ts [output-path] [--force]
+ * Output: eval/sample.json by default (each entry has verdict: null until hand-labeled), or
+ * the given path -- an optional override that exists mainly so a smoke test can exercise
+ * this script end-to-end without touching the real, hand-labeled file (see
+ * sample-edges.test.ts).
  */
 import { readFileSync, writeFileSync } from "fs";
 import { loadCatalog, slugOf } from "../src/lib/catalog.js";
@@ -19,7 +22,8 @@ import type { InputField } from "../src/types.js";
 import { mulberry32, shuffle } from "./lib/sampling.js";
 import { assertSafeToOverwrite } from "./lib/safe-write.js";
 
-assertSafeToOverwrite("eval/sample.json");
+const OUT_PATH = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "eval/sample.json";
+assertSafeToOverwrite(OUT_PATH);
 
 // Fixed, documented seed -- the sample is reproducible from this, not re-randomized on
 // every run (which would make "did labeling stay consistent" impossible to check later).
@@ -102,5 +106,5 @@ const sample = {
   entries: [...sampleTier5.map(buildEntry), ...sampleTier4.map(buildEntry)],
 };
 
-writeFileSync("eval/sample.json", JSON.stringify(sample, null, 2), "utf-8");
-console.error(`wrote eval/sample.json: ${sample.entries.length} entries (${sampleTier5.length} tier-5, ${sampleTier4.length} tier-4)`);
+writeFileSync(OUT_PATH, JSON.stringify(sample, null, 2), "utf-8");
+console.error(`wrote ${OUT_PATH}: ${sample.entries.length} entries (${sampleTier5.length} tier-5, ${sampleTier4.length} tier-4)`);

@@ -13,8 +13,11 @@
  * labeler can see whether the heuristic came close and was excluded by threshold/circularity,
  * or found nothing resembling a producer at all.
  *
- * Run: node --import tsx eval/sample-unresolved.ts
- * Output: eval/unresolved-sample.json (each entry has verdict: null until hand-labeled).
+ * Run: node --import tsx eval/sample-unresolved.ts [output-path] [--force]
+ * Output: eval/unresolved-sample.json by default (each entry has verdict: null until
+ * hand-labeled), or the given path -- an optional override that exists mainly so a smoke
+ * test can exercise this script end-to-end without touching the real, hand-labeled file
+ * (see sample-unresolved.test.ts).
  */
 import { writeFileSync } from "fs";
 import { loadCatalog, slugOf, requiredInputsOf } from "../src/lib/catalog.js";
@@ -35,7 +38,8 @@ import type { InputField, Tool } from "../src/types.js";
 import { mulberry32, shuffle } from "./lib/sampling.js";
 import { assertSafeToOverwrite } from "./lib/safe-write.js";
 
-assertSafeToOverwrite("eval/unresolved-sample.json");
+const OUT_PATH = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "eval/unresolved-sample.json";
+assertSafeToOverwrite(OUT_PATH);
 
 const SEED = 424242;
 const SAMPLE_SIZE = 60;
@@ -138,5 +142,5 @@ const sample = {
   entries,
 };
 
-writeFileSync("eval/unresolved-sample.json", JSON.stringify(sample, null, 2), "utf-8");
-console.error(`wrote eval/unresolved-sample.json: ${entries.length} entries (of ${unresolved.length} unresolved total)`);
+writeFileSync(OUT_PATH, JSON.stringify(sample, null, 2), "utf-8");
+console.error(`wrote ${OUT_PATH}: ${entries.length} entries (of ${unresolved.length} unresolved total)`);
