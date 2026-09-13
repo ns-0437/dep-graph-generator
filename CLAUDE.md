@@ -157,9 +157,12 @@ Current thresholds in `src/generate.ts` (tune here if quality needs adjusting):
   (the README's own text already hedges this: "there could be other ways to get an
   issue_number too") — just not from that specific producer. Recording this because it's
   the kind of thing worth knowing before citing a specific edge as a worked example.
-- Against `github_catalog.json`: 2025 required fields total, 1073 excluded as context, 231
-  unresolved by heuristics and handed to the LLM. 893 nodes (provenance 1.0), 2101 edges
-  heuristically, plus whatever the LLM resolves on top when credentials are present.
+- Against `github_catalog.json`: 2025 required fields total, 1073 excluded as context, 229
+  unresolved by heuristics and handed to the LLM. 893 nodes (provenance 1.0), 1894 edges
+  heuristically, plus whatever the LLM resolves on top when credentials are present. (These
+  numbers moved twice since first written -- 2101 -> 1825 -> 1894 -- as real correctness bugs
+  were found and fixed; see the "bugs found by actually measuring correctness" list below and
+  `eval/RESULTS.md` for what changed and why.)
 
 `flattenOutputs` (in `lib/schema.ts`) handles `$ref`/`$defs`, arrays, and — since a later
 pass — `allOf`/`oneOf`/`anyOf` composition, walking each branch as an alternative shape for
@@ -190,17 +193,26 @@ Known limitations (heuristic can't catch these):
 - `npm run typecheck` — `tsc` in strict mode (+ `noUncheckedIndexedAccess`). There was no
   `tsconfig.json` at all until this was added; TypeScript had never actually been
   type-checked in this project before that (tsx only transpiles, it doesn't check types).
-- `npm test` — 57 tests via Node's built-in test runner (`node --test`, no extra framework
-  dependency): unit tests for every `lib/*` module, end-to-end tests calling the real
-  exported `generate()` (against the synthetic Slack catalog, the actual GitHub catalog, and
-  — via an injected fake LLM client — a case that exercises LLM-resolved edges specifically),
-  and CLI subprocess tests that spawn the real entrypoint and check the files it writes.
-  `generate.ts` had to be made safely importable first — `main()` used to run unconditionally
-  at module scope, so importing the file anywhere immediately tried to read argv and write
-  output files as a side effect; it's now guarded behind an entrypoint check.
+- `npm test` — 92 tests via Node's built-in test runner (`node --test`, no extra framework
+  dependency): unit tests for every `lib/*` module and every `eval/*`/`eval/lib/*` script,
+  end-to-end tests calling the real exported `generate()` (against the synthetic Slack
+  catalog, the actual GitHub catalog, and — via an injected fake LLM client — cases that
+  exercise LLM-resolved edges and duplicate-field dedup specifically), and CLI subprocess
+  tests that spawn the real entrypoint and check the files it writes. `generate.ts` had to be
+  made safely importable first — `main()` used to run unconditionally at module scope, so
+  importing the file anywhere immediately tried to read argv and write output files as a
+  side effect; it's now guarded behind an entrypoint check.
 - `npm run coverage` — via `c8` (switched from Node's `--experimental-test-coverage`, see
-  below): **100% line / 100% function / 93.58% branch** coverage across every file. Every
-  `lib/*.ts` module and `generate.ts` are fully line-covered.
+  below): **100% line / 100% function / 99.16% branch** coverage across every file (the
+  branch number climbed from an earlier 93.58% by deliberately reading c8's own
+  uncovered-line report and writing a test for each real gap it named, rather than assuming
+  high line coverage meant the logic was actually exercised). Every `lib/*.ts` module and
+  `generate.ts` are fully line-covered; `catalog.ts`, `llm.ts`, `match.ts`, and every
+  `eval/*`/`eval/lib/*` script are fully *branch*-covered too. The two remaining uncovered
+  branches (`generate.ts`'s `requiredNamesByTool.get(producerSlug) ?? new Set()` and
+  `schema.ts`'s `path ? ... : key`) are both defensive fallbacks that are genuinely
+  unreachable given how those functions are actually invoked in this codebase — confirmed by
+  tracing the call sites, not left uncovered by not looking.
   - **Correcting an earlier claim in this file's history**: an earlier version of this
     section said generate.ts's edge-emission loop showing as uncovered was "a
     tsx-transform/sourcemap attribution quirk... not an actual gap." That specific claim was
