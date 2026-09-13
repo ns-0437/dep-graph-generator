@@ -12,6 +12,7 @@ import { loadCatalog, slugOf, requiredInputsOf, guessService } from "./lib/catal
 import {
   buildLeafFrequency,
   buildInputFrequency,
+  buildRequiredNamesByTool,
   indexFields,
   matchScore,
   isContextField,
@@ -70,13 +71,12 @@ export async function generate(tools: Tool[], client?: ChatClient): Promise<Grap
   // A producer that itself requires the same field name (or its TOKEN_SYNONYMS-equivalent,
   // e.g. "webhook_id" for "hook_id") as one of its own inputs can't actually help discover
   // that value -- you'd need it already just to call the producer. See isCircularProducer in
-  // lib/match.ts for the concrete example and measured impact. Canonicalized once per
-  // producer here, not per (field, producer) pair inside the matching loop below -- the same
-  // precomputation discipline as IndexedField, since this runs ~24.9 million times.
-  const requiredNamesByTool = new Map<string, Set<string>>();
-  for (const [slug, inputs] of requiredByTool) {
-    requiredNamesByTool.set(slug, new Set(inputs.map((i) => canonicalFieldKey(i.name))));
-  }
+  // lib/match.ts for the concrete example and measured impact. buildRequiredNamesByTool
+  // canonicalizes once per producer here, not per (field, producer) pair inside the matching
+  // loop below -- the same precomputation discipline as IndexedField, since this runs ~24.9
+  // million times. Shared with eval/sample-unresolved.ts specifically so the two can't drift
+  // out of sync with each other the way they once did.
+  const requiredNamesByTool = buildRequiredNamesByTool(requiredByTool);
 
   const edges: Edge[] = [];
   const seen = new Set<string>();

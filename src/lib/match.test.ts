@@ -7,6 +7,7 @@ import {
   isContextField,
   isCircularProducer,
   canonicalFieldKey,
+  buildRequiredNamesByTool,
   buildLeafFrequency,
   buildInputFrequency,
   indexFields,
@@ -219,4 +220,20 @@ test("isCircularProducer: true across the pat/token synonym", () => {
 test("isCircularProducer: canonicalization doesn't cause unrelated fields to collide", () => {
   // Guards against the synonym/sort-based canonicalization being too loose.
   assert.equal(circular("hook_id", ["owner", "repo", "milestone_id"]), false);
+});
+
+test("buildRequiredNamesByTool precomputes canonicalized keys per tool, ready for isCircularProducer", () => {
+  // The shared helper generate.ts and eval/sample-unresolved.ts both call, specifically so
+  // the two can't independently (and silently) drift out of sync with isCircularProducer's
+  // contract again -- see CLAUDE.md's bug list for the incident this replaced.
+  const requiredByTool = new Map<string, InputField[]>([
+    ["PRODUCER_A", [input("owner"), input("webhook_id")]],
+    ["PRODUCER_B", [input("pullRequestId")]],
+  ]);
+  const result = buildRequiredNamesByTool(requiredByTool);
+  assert.deepEqual([...result.get("PRODUCER_A")!].sort(), [canonicalFieldKey("owner"), canonicalFieldKey("webhook_id")].sort());
+  // Directly exercises the case that used to be missed: a producer requiring "webhook_id"
+  // must be recognized as circular for a "hook_id"-requiring consumer via this precomputed set.
+  assert.equal(isCircularProducer(canonicalFieldKey("hook_id"), result.get("PRODUCER_A")!), true);
+  assert.equal(isCircularProducer(canonicalFieldKey("pull_request_id"), result.get("PRODUCER_B")!), true);
 });

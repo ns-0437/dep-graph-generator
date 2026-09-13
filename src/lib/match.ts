@@ -148,6 +148,23 @@ export function canonicalFieldKey(name: string): string {
 }
 
 /**
+ * Precomputes each tool's canonicalized required-field-name set, ready to pass straight into
+ * isCircularProducer. Exists as a single shared helper specifically because generate.ts and
+ * eval/sample-unresolved.ts each used to build this map inline and independently -- and did,
+ * for one commit, silently drift out of sync with each other when isCircularProducer's
+ * contract changed (the eval script kept passing raw names after generate.ts switched to
+ * canonical ones, quietly regressing its own circularity detection back to exact-string
+ * matching). One implementation both callers share can't drift from itself.
+ */
+export function buildRequiredNamesByTool(requiredByTool: ReadonlyMap<string, InputField[]>): Map<string, Set<string>> {
+  const requiredNamesByTool = new Map<string, Set<string>>();
+  for (const [slug, inputs] of requiredByTool) {
+    requiredNamesByTool.set(slug, new Set(inputs.map((i) => canonicalFieldKey(i.name))));
+  }
+  return requiredNamesByTool;
+}
+
+/**
  * True if the candidate producer itself requires this same field (exactly, or under the
  * TOKEN_SYNONYMS abbreviations above -- "hook_id" and "webhook_id" are the same field for
  * this purpose) as one of its own inputs -- meaning it can't actually be a useful precursor

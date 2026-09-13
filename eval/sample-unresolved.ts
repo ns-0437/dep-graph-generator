@@ -23,6 +23,7 @@ import {
   indexFields,
   buildLeafFrequency,
   buildInputFrequency,
+  buildRequiredNamesByTool,
   matchScore,
   isContextField,
   isCircularProducer,
@@ -57,14 +58,11 @@ for (const [slug, tool] of toolBySlug) requiredByTool.set(slug, requiredInputsOf
 const inputFrequency = buildInputFrequency([...requiredByTool.values()]);
 const totalTools = toolBySlug.size;
 
-// Canonicalized (TOKEN_SYNONYMS + naming-convention-invariant) the same way generate.ts
-// builds this, not raw names -- see isCircularProducer's own docs for why exact-string
-// comparison here silently missed real circularity (hook_id/webhook_id, migrationId/
-// migration_id, ...) until this was fixed to match.
-const requiredNamesByTool = new Map<string, Set<string>>();
-for (const [slug, inputs] of requiredByTool) {
-  requiredNamesByTool.set(slug, new Set(inputs.map((i) => canonicalFieldKey(i.name))));
-}
+// Shared with generate.ts specifically so the two can't drift out of sync with each other
+// the way they once did (see buildRequiredNamesByTool's own docs, and CLAUDE.md's bug list,
+// for the incident this replaced: this script silently regressed to exact-string circularity
+// matching for one commit after generate.ts's own copy of this logic was fixed).
+const requiredNamesByTool = buildRequiredNamesByTool(requiredByTool);
 
 // Same loop as generate.ts, but we also track the best-scoring candidate below threshold
 // (or excluded by circularity) for each unresolved field, purely for labeling context.
