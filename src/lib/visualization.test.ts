@@ -35,6 +35,17 @@ test("renderVisualizationHtml produces exactly one script tag even with a malici
   assert.equal((html.match(/<\/script>/g) || []).length, 1);
 });
 
+test("renderVisualizationHtml gives the fixed legend overlay pointer-events:none", () => {
+  // Regression guard: a position:fixed element paints above in-flow content regardless of
+  // z-index, so without pointer-events:none the legend box silently swallowed mousedown/drag
+  // events meant for the canvas underneath whenever a drag started over it -- confirmed
+  // in-browser (a pan gesture starting on the legend produced zero movement before this).
+  const html = renderVisualizationHtml({ nodes: [], edges: [] });
+  const legendRule = html.match(/#legend\s*\{[^}]*\}/)?.[0];
+  assert.ok(legendRule, "the #legend CSS rule must exist");
+  assert.match(legendRule!, /pointer-events\s*:\s*none/);
+});
+
 test("renderVisualizationHtml scales the canvas backing buffer by devicePixelRatio", () => {
   // Regression guard for a real bug (see git history): the canvas's drawing-buffer
   // resolution must be scaled by devicePixelRatio and matched with a ctx transform, or
