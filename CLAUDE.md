@@ -282,6 +282,22 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   context, and verified it actually resolves (not just theoretically should). A CSS bug
   surfaced in the same pass too: the loading overlay was double-offset from being nested
   inside an already-offset container.
+- `graph.html`'s canvas rendered blurry on any HiDPI/retina display (`devicePixelRatio > 1`)
+  — the drawing-buffer resolution (`canvas.width`/`height`) was set to exactly the CSS
+  display size, with no DPR scaling, so the browser had to upscale the bitmap. Confirmed
+  directly in-browser (backing buffer matched CSS size 1:1 under a real `devicePixelRatio:
+  1.5` session) before fixing, not assumed from reading the code. Fixed by scaling the
+  buffer by `devicePixelRatio` and applying a matching `ctx.setTransform`, which required
+  separating the buffer's pixel count from the logical size the mouse-coordinate mapping
+  reasons in (`cssWidth`/`cssHeight`) — re-verified click/hover accuracy under a mocked
+  `devicePixelRatio: 2` afterward, not just that the buffer resized.
+- `graph.html`'s `#legend` overlay (the "Drag background to pan..." hint box) had no
+  `pointer-events: none`, unlike `#tooltip` which already correctly had it. A
+  `position:fixed` element paints above in-flow content regardless of z-index, so the
+  legend silently swallowed drag/click events meant for the canvas underneath whenever a
+  gesture started over it — confirmed interactively: a pan drag starting on the legend
+  produced zero movement, the identical drag a few pixels outside it worked. Fixed with the
+  same `pointer-events: none` treatment `#tooltip` already had.
 - (Checked, not a bug, but verified rather than assumed: `npm audit` reports 0
   vulnerabilities in the current dependency tree.)
 - (Checked, deliberately not acted on: `npm outdated` shows both `openai` and `typescript`
