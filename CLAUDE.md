@@ -210,7 +210,7 @@ Known limitations (heuristic can't catch these):
   changing runtime behavior (regenerated `dependency_graph.json`/`graph.html` and diffed
   against the pre-fix output: byte-identical, since `JSON.stringify` already drops
   `undefined`-valued keys either way).
-- `npm test` — 92 tests via Node's built-in test runner (`node --test`, no extra framework
+- `npm test` — 115 tests via Node's built-in test runner (`node --test`, no extra framework
   dependency): unit tests for every `lib/*` module and every `eval/*`/`eval/lib/*` script,
   end-to-end tests calling the real exported `generate()` (against the synthetic Slack
   catalog, the actual GitHub catalog, and — via an injected fake LLM client — cases that
@@ -218,18 +218,30 @@ Known limitations (heuristic can't catch these):
   tests that spawn the real entrypoint and check the files it writes. `generate.ts` had to be
   made safely importable first — `main()` used to run unconditionally at module scope, so
   importing the file anywhere immediately tried to read argv and write output files as a
-  side effect; it's now guarded behind an entrypoint check.
+  side effect; it's now guarded behind an entrypoint check. Includes real end-to-end smoke
+  tests for `sample-edges.ts`/`sample-unresolved.ts` themselves (running the actual scripts
+  as subprocesses against a temp output path, never touching the real hand-labeled files) --
+  added specifically because these two scripts had *no* automated coverage at all before, and
+  silently drifted out of sync with `generate.ts`'s own logic for a full commit as a direct
+  result (see the bug list below). One of these tests is a parity check that runs both
+  `sample-unresolved.ts` and `generate.ts` and asserts their unresolved-field counts agree --
+  the exact invariant that broke.
 - `npm run coverage` — via `c8` (switched from Node's `--experimental-test-coverage`, see
-  below): **100% line / 100% function / 99.16% branch** coverage across every file (the
-  branch number climbed from an earlier 93.58% by deliberately reading c8's own
-  uncovered-line report and writing a test for each real gap it named, rather than assuming
-  high line coverage meant the logic was actually exercised). Every `lib/*.ts` module and
-  `generate.ts` are fully line-covered; `catalog.ts`, `llm.ts`, `match.ts`, and every
-  `eval/*`/`eval/lib/*` script are fully *branch*-covered too. The two remaining uncovered
-  branches (`generate.ts`'s `requiredNamesByTool.get(producerSlug) ?? new Set()` and
-  `schema.ts`'s `path ? ... : key`) are both defensive fallbacks that are genuinely
-  unreachable given how those functions are actually invoked in this codebase — confirmed by
-  tracing the call sites, not left uncovered by not looking.
+  below), gated with `.c8rc.json` (`--check-coverage` at 100% lines/functions/statements, 99%
+  branches — a hair below the current measured number, so a real regression still fails the
+  build without masking legitimate small fluctuation): **100% line / 100% function / 99.35%
+  branch** coverage across every file (the branch number climbed from an earlier 93.58% by
+  deliberately reading c8's own uncovered-line report and writing a test for each real gap it
+  named, rather than assuming high line coverage meant the logic was actually exercised).
+  Every `lib/*.ts` module and `generate.ts` are fully line-covered; `catalog.ts`, `llm.ts`,
+  `match.ts`, and every `eval/*`/`eval/lib/*` script are fully *branch*-covered too. The
+  remaining uncovered branches (`generate.ts`'s `requiredNamesByTool.get(producerSlug) ?? new
+  Set()`, `schema.ts`'s `path ? ... : key`, and a handful of `?? `/`?.` fallbacks in the eval
+  sampling scripts) are all defensive code that's genuinely unreachable given how those
+  functions are actually invoked and what the real committed catalog/graph data looks like —
+  confirmed by tracing call sites and, for the eval scripts, checking the real catalog
+  directly (e.g. 0 of 893 tools lack a `description`), not left uncovered by not looking, and
+  marked with `c8 ignore` plus an explanation rather than silently excluded.
   - **Correcting an earlier claim in this file's history**: an earlier version of this
     section said generate.ts's edge-emission loop showing as uncovered was "a
     tsx-transform/sourcemap attribution quirk... not an actual gap." That specific claim was
