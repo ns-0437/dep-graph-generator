@@ -154,6 +154,35 @@ not just the percentages) are still the load-bearing part of this evaluation.
 The two entries this fix targeted are a confirmed, small net improvement on
 top of that baseline, not a reason to distrust it.
 
+## Follow-up fix: naming-convention-invariant circularity checks
+
+Making the hook/webhook and pat/token synonyms apply consistently to
+`isCircularProducer` (previously only `matchScore` used them) surfaced a
+second, larger, unrelated gap while implementing that consistency fix:
+`isCircularProducer` compared a producer's own required-field names to the
+target field by exact string equality, which misses producers and consumers
+naming the identical concept in different conventions -- this catalog mixes
+camelCase (`migrationId`, `pullRequestId`, `tierId`, `fieldId`, `listId`,
+likely from GraphQL-flavored tools) and snake_case (`migration_id`,
+`pull_request_id`, `tier_id`, `field_id`, `list_id`, from REST-flavored ones)
+for the same fields across different tools.
+
+Found by diffing real before/after edges after the fix, not assumed: 8 edges
+that should never have existed (genuinely circular producers the old exact
+match let through) were removed, and 3 previously-blocked genuine producers
+took the newly-freed `MAX_PRODUCERS_PER_FIELD` slots. Net: 1894 -> 1889 edges,
+unresolved 229 -> 230.
+
+Also caught a real performance regression while building this, before it
+shipped: an early version canonicalized the target field name and every
+producer's required names *inside* `isCircularProducer` on every call --
+which runs ~24.9 million times against the real catalog, the same order as
+`matchScore`. `generate()`'s measured runtime regressed from ~1.9s to ~5.7s.
+Fixed with the same precomputation discipline `IndexedField` already uses for
+`matchScore`: canonicalize each producer's required names once, and the
+current field's name once per field (not once per producer comparison).
+Re-measured after: ~2.2-2.8s, consistent with the documented baseline.
+
 ## Investigated and rejected: a type-count-based fix for `key`/`login`
 
 Before adding anything else, checked whether the remaining `key`/`login`

@@ -164,12 +164,12 @@ Current thresholds in `src/generate.ts` (tune here if quality needs adjusting):
   from that specific producer. Recording this, and re-checking it after each fix that
   changes the candidate pool, because it's the kind of thing worth knowing before citing a
   specific edge as a worked example.
-- Against `github_catalog.json`: 2025 required fields total, 1073 excluded as context, 229
-  unresolved by heuristics and handed to the LLM. 893 nodes (provenance 1.0), 1894 edges
+- Against `github_catalog.json`: 2025 required fields total, 1073 excluded as context, 230
+  unresolved by heuristics and handed to the LLM. 893 nodes (provenance 1.0), 1889 edges
   heuristically, plus whatever the LLM resolves on top when credentials are present. (These
-  numbers moved twice since first written -- 2101 -> 1825 -> 1894 -- as real correctness bugs
-  were found and fixed; see the "bugs found by actually measuring correctness" list below and
-  `eval/RESULTS.md` for what changed and why.)
+  numbers moved three times since first written -- 2101 -> 1825 -> 1894 -> 1889 -- as real
+  correctness bugs were found and fixed; see the "bugs found by actually measuring
+  correctness" list below and `eval/RESULTS.md` for what changed and why.)
 
 `flattenOutputs` (in `lib/schema.ts`) handles `$ref`/`$defs`, arrays, and — since a later
 pass — `allOf`/`oneOf`/`anyOf` composition, walking each branch as an alternative shape for
@@ -333,6 +333,18 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   abbreviation not sharing a token with its own type name (`hook_id` vs `Webhook.id`, `pat_id`
   vs `Token.id`). Fixed with a small `TOKEN_SYNONYMS` map in `src/lib/match.ts`; edges
   1825 -> 1894. See `eval/RESULTS.md`'s "Follow-up fix" section.
+- Making the TOKEN_SYNONYMS fix apply consistently to `isCircularProducer` (not just
+  `matchScore`) surfaced a second, unrelated, bigger gap: `isCircularProducer`'s exact-string
+  comparison missed producers and consumers naming the identical field in different
+  conventions -- this catalog mixes camelCase (`migrationId`, `pullRequestId`) and snake_case
+  (`migration_id`, `pull_request_id`) for the same concepts across its GraphQL- vs
+  REST-flavored tools. 8 genuinely circular edges had been silently let through; fixing it
+  freed 3 previously-blocked genuine producers into the newly-open
+  `MAX_PRODUCERS_PER_FIELD` slots. Net edges 1894 -> 1889. Caught (and fixed) a real
+  performance regression while building this fix, too: canonicalizing inside
+  `isCircularProducer` on every call — it runs ~24.9 million times — regressed `generate()`
+  from ~1.9s to ~5.7s; precomputing each producer's canonicalized keys once (same discipline
+  as `IndexedField`) brought it back to ~2.2-2.8s.
 
 ## Commands
 
