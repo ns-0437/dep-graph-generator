@@ -128,24 +128,35 @@ const GRAPH = {"nodes":[{"id":"GITHUB_ABORT_REPOSITORY_MIGRATION","service":"rep
   let panStart = null;
   let highlight = null;
 
+  // canvas.width/height are the drawing-buffer resolution (scaled up by devicePixelRatio
+  // below, for crisp rendering on retina/high-DPI screens); cssWidth/cssHeight are the
+  // logical size the layout math and screen<->world mapping actually reason in, matching
+  // what the CSS/mouse-event coordinate space uses. Without this split, drawing at
+  // canvas.width (post-DPR-scaling, e.g. 1.5x the CSS size) while a devicePixelRatio ctx
+  // scale is also applied would double-scale everything.
+  let cssWidth = 0, cssHeight = 0;
   function resize() {
-    canvas.style.width = window.innerWidth + "px";
-    canvas.style.height = (window.innerHeight - 46) + "px";
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight - 46;
+    const dpr = window.devicePixelRatio || 1;
+    cssWidth = window.innerWidth;
+    cssHeight = window.innerHeight - 46;
+    canvas.style.width = cssWidth + "px";
+    canvas.style.height = cssHeight + "px";
+    canvas.width = Math.round(cssWidth * dpr);
+    canvas.height = Math.round(cssHeight * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
   window.addEventListener("resize", () => { resize(); draw(); });
 
   function toScreen(x, y) {
-    return [canvas.width / 2 + (x + view.x) * view.scale, canvas.height / 2 + (y + view.y) * view.scale];
+    return [cssWidth / 2 + (x + view.x) * view.scale, cssHeight / 2 + (y + view.y) * view.scale];
   }
   function toWorld(sx, sy) {
-    return [(sx - canvas.width / 2) / view.scale - view.x, (sy - canvas.height / 2) / view.scale - view.y];
+    return [(sx - cssWidth / 2) / view.scale - view.x, (sy - cssHeight / 2) / view.scale - view.y];
   }
 
   function draw() {
     ctx.fillStyle = "#0b0d12";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, cssWidth, cssHeight);
     ctx.lineWidth = 1;
     for (const e of edges) {
       const a = nodeById.get(e.from), b = nodeById.get(e.to);
