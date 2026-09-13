@@ -1,5 +1,5 @@
 #!/bin/sh
-# Type-checks exactly what's staged for this commit -- not the working tree.
+# Type-checks and tests exactly what's staged for this commit -- not the working tree.
 #
 # Added after a real incident: a commit's `git add` listed two of the three files a
 # refactor had touched. Locally, `npm run typecheck` against the working tree still passed
@@ -25,3 +25,6 @@ trap cleanup EXIT
 
 echo "pre-commit: type-checking the staged snapshot..."
 npm run typecheck
+
+echo "pre-commit: running tests against the staged snapshot..."
+npm test
