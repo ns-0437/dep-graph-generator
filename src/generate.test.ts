@@ -204,6 +204,82 @@ test("generate(): excludes a producer that itself requires the same field it wou
   assert.deepEqual(producers, ["GENUINE_PRODUCER"]);
 });
 
+test("generate(): a duplicate required field name doesn't produce a duplicate heuristic edge", async () => {
+  // A malformed-but-plausible catalog: `required` accidentally lists the same field name
+  // twice. Both instances resolve to the same candidate, so the from->to->label key
+  // collides -- the `seen` dedup guard must keep only one edge, not emit it twice.
+  const catalog = [
+    {
+      slug: "PRODUCER",
+      inputParameters: { required: [] },
+      outputParameters: {
+        properties: { data: { $ref: "#/$defs/Issue" } },
+        $defs: { Issue: { type: "object", properties: { number: { type: "integer" } } } },
+      },
+    },
+    {
+      slug: "CONSUMER",
+      inputParameters: { required: ["issue_number", "issue_number"] },
+      outputParameters: { properties: {} },
+    },
+  ];
+  const graph = await generate(catalog);
+  const matching = graph.edges.filter((e) => e.from === "PRODUCER" && e.to === "CONSUMER" && e.label === "issue_number");
+  assert.equal(matching.length, 1);
+});
+
+test("generate(): a duplicate unresolved field name doesn't produce a duplicate LLM-resolved edge", async () => {
+  // Same duplicate-required-field scenario, but for a field the heuristic can't resolve at
+  // all (zero candidates) -- both duplicate entries land in `unresolved` and are sent to
+  // the (fake) LLM independently, which resolves both identically. The merge loop's `seen`
+  // guard must still collapse them into one edge.
+  const catalog = [
+    {
+      slug: "PRODUCER",
+      inputParameters: { required: [] },
+      outputParameters: {
+        properties: { data: { $ref: "#/$defs/Channel" } },
+        $defs: { Channel: { type: "object", properties: { id: { type: "string" } } } },
+      },
+    },
+    {
+      slug: "CONSUMER",
+      // "workspace_id" shares the "id" token with Channel.id (so looseCandidates finds it),
+      // but the leftover "workspace" token doesn't match the owning type "Channel" -- the
+      // heuristic scores this 0 and it lands in `unresolved`, exactly the gap the LLM pass
+      // exists for.
+      inputParameters: { required: ["workspace_id", "workspace_id"] },
+      outputParameters: { properties: {} },
+    },
+  ];
+  const fakeClient: ChatClient = {
+    chat: {
+      completions: {
+        create: async () => ({
+          choices: [{ message: { content: '[{"idx":0,"ci":0},{"idx":1,"ci":0}]' } }],
+        }),
+      },
+    },
+  };
+  const graph = await generate(catalog, fakeClient);
+  const matching = graph.edges.filter((e) => e.from === "PRODUCER" && e.to === "CONSUMER" && e.label === "workspace_id");
+  assert.equal(matching.length, 1);
+});
+
+test("generate(): silently skips a tool with no slug/name/function.name instead of producing a bad node", async () => {
+  const catalog = [
+    // No slug, no name, no function.name -- slugOf() returns undefined for this one.
+    { inputParameters: { required: [] }, outputParameters: { properties: {} } },
+    {
+      slug: "REAL_TOOL",
+      inputParameters: { required: [] },
+      outputParameters: { properties: {} },
+    },
+  ];
+  const graph = await generate(catalog as never);
+  assert.deepEqual(graph.nodes.map((n) => n.id), ["REAL_TOOL"]);
+});
+
 test("CLI: exits non-zero with a clear error when no catalog path is given", () => {
   const generatorPath = resolve("src/generate.ts");
   // No output files are ever written on this path -- loadCatalog throws before
