@@ -89,11 +89,11 @@ directly, each narrowly scoped and verified safe across the whole catalog
 first rather than guessed: `singularize` treating "ids" as an irregular
 plural (below), and a small `TOKEN_SYNONYMS` map added in a follow-up pass
 covering `hook` -> `webhook` and `pat` -> `token` (see "Follow-up fix" below).
-The remaining generic-threshold cases (`key`/`login`) would need type-aware
-scope tracking, not just a synonym table, to fix without reintroducing the
-false positives the genericity guard was added to prevent -- still out of
-scope, documented here as a known, specific limitation rather than silently
-left unexplained.
+The remaining generic-threshold cases (`key`/`login`) would need real type
+clustering, not just a synonym table or a same-type-name check, to fix
+without reintroducing the false positives the genericity guard was added to
+prevent -- see "Investigated and rejected" below for why a same-type-name
+approach specifically doesn't work, checked directly rather than assumed.
 
 ## A real bug found and fixed during this evaluation
 
@@ -153,6 +153,39 @@ sustainable, and the specific, verified findings above (the failure patterns,
 not just the percentages) are still the load-bearing part of this evaluation.
 The two entries this fix targeted are a confirmed, small net improvement on
 top of that baseline, not a reason to distrust it.
+
+## Investigated and rejected: a type-count-based fix for `key`/`login`
+
+Before adding anything else, checked whether the remaining `key`/`login`
+generic-threshold cases could get the same kind of narrow, verified fix as
+`hook`/`pat`: specifically, whether a leaf name used by many tools but always
+under the *same* owning type name could skip the genericity suppression,
+while one used under *different* type names stays suppressed -- letting the
+data itself distinguish "common but single-concept" (`login`) from "common
+and genuinely polysemous" (`id`, `name`).
+
+This doesn't work, and checking it directly (rather than assuming it would)
+is itself the useful result: of all 148 leaf names past `GENERIC_THRESHOLD`,
+**zero** are single-type. `login` alone appears under **86 distinct owning
+type names** -- `SimpleUser` (234x), `User` (129x), `Owner` (35x),
+`GitHubUser` (26x), `RepositoryOwner`, `Organization`, `IssueUser`,
+`EventOrg`, `EventActor`, `Actor`, `Author`, `Creator`, ... all structurally
+representing the same real thing (a GitHub account), just labeled
+differently depending on where in a response schema the object is nested.
+The owning-type-name matching this whole project is built on assumes a
+concept has one consistent type name -- true for `Issue`/`PullRequest` (the
+patterns the original README names), false for embedded user/actor objects,
+which get a fresh ad-hoc type name nearly everywhere they're nested.
+
+So `login` is semantically single-concept but *syntactically* multi-typed,
+and a same-type-name check can't tell that apart from `id`/`name` genuinely
+meaning different things across different types -- it would need real type
+clustering (recognizing `SimpleUser`/`Owner`/`Actor`/`Author`/... as the same
+underlying shape, not just different labels) to work, which is a
+meaningfully bigger undertaking than a synonym table and risks the exact
+false positives the genericity guard exists to prevent if done carelessly.
+Left as a documented, verified limitation rather than either a guessed fix
+or a silently dropped idea.
 
 ## What this evaluation established, overall
 
