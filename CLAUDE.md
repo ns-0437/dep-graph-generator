@@ -356,6 +356,22 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   here regardless — it already tokenizes both sides of every comparison via
   `IndexedField`/`InputField`, so `project_id` vs `projectId` as a *matching* target already
   resolves identically either way. Not fixed, because there's currently nothing to fix.)
+- Two more real incidents from actually building and using the eval tooling itself (not the
+  generator), both in `eval/`:
+  - Re-running `sample-edges.ts`/`sample-unresolved.ts` directly (to sanity-check an
+    unrelated refactor's output) silently overwrote the hand-labeled
+    `eval/sample.json`/`eval/unresolved-sample.json` with fresh, unlabeled samples — caught
+    only because it happened to be noticed before the overwrite got committed. Fixed with
+    `eval/lib/safe-write.ts`'s `assertSafeToOverwrite`, now called at the top of both
+    scripts: refuses (exit 1) if the target already has any hand-labeled entries, unless
+    `--force` is passed.
+  - Separately, `sample-unresolved.ts` was never updated when `isCircularProducer`'s
+    contract changed to expect pre-canonicalized keys — it kept passing raw field names,
+    silently regressing its own circularity detection back to exact-string matching (losing
+    both the hook/webhook synonym and the camelCase/snake_case fix) while `generate.ts`
+    itself stayed correct. Caught by the exact kind of drift the script's own docstring
+    warns about: it reported 229 unresolved fields against a catalog where `generate.ts`
+    reports 230. Fixed to canonicalize the same way `generate.ts` does.
 
 ## Commands
 
