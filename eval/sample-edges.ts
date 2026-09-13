@@ -12,7 +12,7 @@
 import { readFileSync, writeFileSync } from "fs";
 import { loadCatalog, slugOf } from "../src/lib/catalog.js";
 import { flattenOutputs } from "../src/lib/schema.js";
-import { indexFields, buildLeafFrequency, matchScore, SCORE_THRESHOLD } from "../src/lib/match.js";
+import { indexFields, buildLeafFrequency, matchScore } from "../src/lib/match.js";
 import type { IndexedField } from "../src/lib/match.js";
 import { tokenize } from "../src/lib/tokenize.js";
 import type { InputField } from "../src/types.js";
