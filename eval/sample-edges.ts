@@ -45,8 +45,17 @@ const leafFrequency = buildLeafFrequency(indexedOutputsByTool);
 
 const graph = JSON.parse(readFileSync("dependency_graph.json", "utf-8"));
 
-/** Re-derive which specific field on the producer justified this edge, and at what score. */
+/**
+ * Re-derive which specific field on the producer justified this edge, and at what score.
+ * The `?? []` and `field ? ... : null` fallbacks below are defensive: dependency_graph.json
+ * and github_catalog.json are always read from the same generate() run, so every edge's
+ * producer/consumer slug is guaranteed present in the catalog and to score >=SCORE_THRESHOLD
+ * against at least one of its own fields -- only reachable if the two files were manually
+ * mismatched. Marked c8-ignored rather than chasing coverage on data corruption this script
+ * has no way to construct without a second, independently-injectable catalog/graph input.
+ */
 function justify(edge: { from: string; to: string; label: string }) {
+  /* c8 ignore next */
   const fields = indexedOutputsByTool.get(edge.from) ?? [];
   const input: InputField = { name: edge.label, tokens: tokenize(edge.label) };
   let best: IndexedField | null = null;
@@ -63,6 +72,7 @@ function justify(edge: { from: string; to: string; label: string }) {
 
 const withEvidence = (graph.edges as { from: string; to: string; label: string }[]).map((e) => {
   const { score, field } = justify(e);
+  /* c8 ignore next */
   return { ...e, score, justifyingField: field ? { name: field.field.name, parentType: field.field.parentType, path: field.field.path } : null };
 });
 
@@ -70,16 +80,27 @@ const tier5 = withEvidence.filter((e) => e.score === 5);
 const tier4 = withEvidence.filter((e) => e.score === 4);
 const other = withEvidence.filter((e) => e.score !== 4 && e.score !== 5);
 console.error(`edges by score: tier5=${tier5.length} tier4=${tier4.length} other/unexplained=${other.length} (of ${withEvidence.length} total)`);
+/* c8 ignore start -- only fires when dependency_graph.json actually has LLM-resolved edges,
+   which requires a real OPENAI_API_KEY-backed generate() run; not exercised by the smoke
+   test (which runs against whatever is currently committed, always LLM-edge-free) without
+   either live network access or making the catalog/graph inputs independently injectable,
+   neither of which is worth it for a single defensive warning line. */
 if (other.length > 0) {
   console.error("WARNING: some edges could not be re-justified at score>=SCORE_THRESHOLD -- likely LLM-resolved edges, sampling only heuristic tiers.");
 }
+/* c8 ignore stop */
 
 const rand = mulberry32(SEED);
 const sampleTier5 = shuffle(tier5, rand).slice(0, PER_TIER);
 const sampleTier4 = shuffle(tier4, rand).slice(0, PER_TIER);
 
+// Every from/to slug in dependency_graph.json comes from a tool that was actually in
+// github_catalog.json when it was generated; the `t ? ... : null` fallback below is only
+// reachable on a mismatch between those two files (see justify()'s docs above for the
+// identical reasoning).
 function toolSummary(slug: string) {
   const t = toolBySlug.get(slug);
+  /* c8 ignore next */
   return t ? { slug, description: t.description ?? null, requiredInputs: t.inputParameters?.required ?? [] } : null;
 }
 
