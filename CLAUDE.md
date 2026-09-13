@@ -277,6 +277,10 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   produces plausible-looking edges" impression the earlier checks gave — dominated by scoped
   identifiers (`comment_id`, `secret_name`, `run_id`, ...) that mean different things in
   different sub-resource namespaces but share a literal field name.
+- Hand-labeling 60 sampled unresolved fields found 2 of 10 real misses were the same domain
+  abbreviation not sharing a token with its own type name (`hook_id` vs `Webhook.id`, `pat_id`
+  vs `Token.id`). Fixed with a small `TOKEN_SYNONYMS` map in `src/lib/match.ts`; edges
+  1825 -> 1894. See `eval/RESULTS.md`'s "Follow-up fix" section.
 
 ## Commands
 

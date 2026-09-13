@@ -84,14 +84,16 @@ The 10 real misses split into two distinct causes:
   specifically, the field really is single-concept everywhere it appears, so
   the guard is pure loss in these two cases.
 
-None of the 10 were fixed via a general threshold change -- one (`singularize`
-treating "ids" as an irregular plural) was fixed directly, described below,
-because it was narrowly scoped and verified safe across the whole catalog. The
-rest (hook/webhook, pat/token, key/login genericity) would need either a
-synonym table or type-aware scope tracking to fix without reintroducing the
-false positives the existing guards were added to prevent -- out of scope for
-this pass, documented here instead as known, specific limitations rather than
-silently left unexplained.
+None of the 10 were fixed via a general threshold change. Three were fixed
+directly, each narrowly scoped and verified safe across the whole catalog
+first rather than guessed: `singularize` treating "ids" as an irregular
+plural (below), and a small `TOKEN_SYNONYMS` map added in a follow-up pass
+covering `hook` -> `webhook` and `pat` -> `token` (see "Follow-up fix" below).
+The remaining generic-threshold cases (`key`/`login`) would need type-aware
+scope tracking, not just a synonym table, to fix without reintroducing the
+false positives the genericity guard was added to prevent -- still out of
+scope, documented here as a known, specific limitation rather than silently
+left unexplained.
 
 ## A real bug found and fixed during this evaluation
 
@@ -120,6 +122,37 @@ so the fix doesn't risk mangling anything else.
 unresolved required fields 262 -> 253 (-9). `environment_ids` now resolves to
 three genuine producers (`GITHUB_CREATE_DEPLOYMENT_PROTECTION_RULE`,
 `GITHUB_CREATE_OR_UPDATE_AN_ENVIRONMENT`, `GITHUB_GET_AN_ENVIRONMENT`).
+
+## Follow-up fix: hook/webhook and pat/token synonyms
+
+Two of the ten `real_miss` entries above (`hook_id` vs `Webhook.id`, `pat_id`/
+`pat_ids` vs `Token.id`) were the same structural problem as `run_attempt`/
+`attempt_number` and `subscribableId`/`node_id`: a genuine, verified producer
+existed, but the consumer's field name used a domain abbreviation that shares
+no token with the producer's type name. Unlike those two, `hook`/`webhook` and
+`pat`/`token` are narrow enough, well-defined enough abbreviations to fix
+directly rather than just document: added `TOKEN_SYNONYMS` in
+`src/lib/match.ts` (`hook -> webhook`, `pat -> token`), consulted only when
+checking the leftover input tokens against a candidate's owning-type-name
+tokens for a score-5 match.
+
+**Measured impact**: `dependency_graph.json` edges 1825 -> 1894 (+69),
+unresolved required fields 253 -> 229 (-24). Confirmed directly: 57 `hook_id`
+edges now present (e.g. `GITHUB_LIST_ORGANIZATION_WEBHOOKS` ->
+`GITHUB_DELETE_A_REPOSITORY_WEBHOOK`), and the exact `pat_id`/`pat_ids` edges
+this evaluation predicted (`GITHUB_LIST_ORG_RESOURCE_ACCESS_TOKENS` ->
+`GITHUB_LIST_TOKEN_ACCESS_REPOSITORIES` / `GITHUB_UPDATE_TOKEN_ORG_ACCESS` /
+`GITHUB_UPDATE_RESOURCE_ACCESS_WITH_TOKENS`) are now present too.
+
+This means the 60.7% precision / 19.2% miss-rate numbers above describe the
+graph as it stood before this fix (commit `1c847b2`), not the current one.
+Both samples were labeled by hand against real edges at that commit and are
+kept as-is rather than silently regenerated out from under their own labels
+-- re-sampling and fully re-labeling both sides after every fix isn't
+sustainable, and the specific, verified findings above (the failure patterns,
+not just the percentages) are still the load-bearing part of this evaluation.
+The two entries this fix targeted are a confirmed, small net improvement on
+top of that baseline, not a reason to distrust it.
 
 ## What this evaluation established, overall
 
