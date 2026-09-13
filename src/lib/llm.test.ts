@@ -122,6 +122,22 @@ test("llmDisambiguate degrades gracefully on a malformed/unparseable response in
   assert.deepEqual(result, []);
 });
 
+test("llmDisambiguate degrades gracefully when the response has no choices/content at all", async () => {
+  // Distinct from the "malformed JSON" case above: here the response shape itself is
+  // missing (choices: [] or content: null), so `resp.choices[0]?.message?.content ?? "[]"`
+  // is what has to save this, not the try/catch around JSON.parse.
+  const outputsByTool = indexedOutputsByTool([["PRODUCER", [outField("id", "Channel")]]]);
+  const fakeClient: ChatClient = {
+    chat: { completions: { create: async () => ({ choices: [] }) } },
+  };
+  const result = await llmDisambiguate(
+    [{ consumer: "CONSUMER", field: input("channel_id") }],
+    outputsByTool,
+    fakeClient,
+  );
+  assert.deepEqual(result, []);
+});
+
 test("llmDisambiguate skips fields with zero loose candidates without calling the client", async () => {
   let called = false;
   const outputsByTool = indexedOutputsByTool([["PRODUCER", [outField("totally_unrelated", "X")]]]);
