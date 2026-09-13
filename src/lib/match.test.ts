@@ -161,6 +161,26 @@ test("isContextField: short-circuits on minCount before even computing the ratio
   assert.equal(isContextField("some_field", freq, 10), false);
 });
 
+test("isContextField/buildInputFrequency count raw spellings separately, by design", () => {
+  // Documents current, verified-safe behavior (see CLAUDE.md's "checked" note): unlike
+  // isCircularProducer (which now canonicalizes via canonicalFieldKey after the
+  // camelCase/snake_case bug), buildInputFrequency still counts by exact raw name, so
+  // "project_id" and "projectId" -- a real split that exists in the catalog -- are two
+  // separate buckets, neither reaching CONTEXT_FIELD_MIN_COUNT here even though their
+  // combined real-world count would still fall short too (verified: 10 + 2 = 12 < 20).
+  // matchScore itself was never at risk from this split -- it already tokenizes both sides
+  // of every comparison independently of this frequency count.
+  const requiredByTool: InputField[][] = [
+    ...Array.from({ length: 10 }, () => [input("project_id")]),
+    ...Array.from({ length: 2 }, () => [input("projectId")]),
+  ];
+  const freq = buildInputFrequency(requiredByTool);
+  assert.equal(freq.get("project_id"), 10);
+  assert.equal(freq.get("projectId"), 2);
+  assert.equal(isContextField("project_id", freq, 893), false);
+  assert.equal(isContextField("projectId", freq, 893), false);
+});
+
 // isCircularProducer takes already-canonicalized keys (see canonicalFieldKey's own docs for
 // why: it runs ~24.9 million times against the real catalog, so canonicalizing inside the
 // function itself on every call would reintroduce the exact re-tokenization cost
