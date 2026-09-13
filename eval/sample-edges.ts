@@ -17,6 +17,9 @@ import type { IndexedField } from "../src/lib/match.js";
 import { tokenize } from "../src/lib/tokenize.js";
 import type { InputField } from "../src/types.js";
 import { mulberry32, shuffle } from "./lib/sampling.js";
+import { assertSafeToOverwrite } from "./lib/safe-write.js";
+
+assertSafeToOverwrite("eval/sample.json");
 
 // Fixed, documented seed -- the sample is reproducible from this, not re-randomized on
 // every run (which would make "did labeling stay consistent" impossible to check later).

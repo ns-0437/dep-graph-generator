@@ -26,11 +26,15 @@ import {
   matchScore,
   isContextField,
   isCircularProducer,
+  canonicalFieldKey,
   SCORE_THRESHOLD,
 } from "../src/lib/match.js";
 import type { IndexedField } from "../src/lib/match.js";
 import type { InputField, Tool } from "../src/types.js";
 import { mulberry32, shuffle } from "./lib/sampling.js";
+import { assertSafeToOverwrite } from "./lib/safe-write.js";
+
+assertSafeToOverwrite("eval/unresolved-sample.json");
 
 const SEED = 424242;
 const SAMPLE_SIZE = 60;
@@ -53,9 +57,13 @@ for (const [slug, tool] of toolBySlug) requiredByTool.set(slug, requiredInputsOf
 const inputFrequency = buildInputFrequency([...requiredByTool.values()]);
 const totalTools = toolBySlug.size;
 
+// Canonicalized (TOKEN_SYNONYMS + naming-convention-invariant) the same way generate.ts
+// builds this, not raw names -- see isCircularProducer's own docs for why exact-string
+// comparison here silently missed real circularity (hook_id/webhook_id, migrationId/
+// migration_id, ...) until this was fixed to match.
 const requiredNamesByTool = new Map<string, Set<string>>();
 for (const [slug, inputs] of requiredByTool) {
-  requiredNamesByTool.set(slug, new Set(inputs.map((i) => i.name)));
+  requiredNamesByTool.set(slug, new Set(inputs.map((i) => canonicalFieldKey(i.name))));
 }
 
 // Same loop as generate.ts, but we also track the best-scoring candidate below threshold
@@ -77,9 +85,10 @@ for (const [consumerSlug, requiredInputs] of requiredByTool) {
     }
     let resolved = false;
     let bestNearMiss: { producer: string; score: number; excludedAsCircular: boolean } | null = null;
+    const canonicalInputName = canonicalFieldKey(input.name);
     for (const [producerSlug, fields] of indexedOutputsByTool) {
       if (producerSlug === consumerSlug) continue;
-      const circular = isCircularProducer(input.name, requiredNamesByTool.get(producerSlug) ?? new Set());
+      const circular = isCircularProducer(canonicalInputName, requiredNamesByTool.get(producerSlug) ?? new Set());
       let best = 0;
       for (const f of fields) best = Math.max(best, matchScore(input, f, leafFrequency));
       if (best >= SCORE_THRESHOLD && !circular) {
