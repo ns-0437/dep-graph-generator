@@ -90,6 +90,10 @@ for (const [consumerSlug, requiredInputs] of requiredByTool) {
     const canonicalInputName = canonicalFieldKey(input.name);
     for (const [producerSlug, fields] of indexedOutputsByTool) {
       if (producerSlug === consumerSlug) continue;
+      // requiredNamesByTool and indexedOutputsByTool are both built from the same toolBySlug
+      // map, so producerSlug is always present in both; only reachable on an internal
+      // inconsistency between the two.
+      /* c8 ignore next */
       const circular = isCircularProducer(canonicalInputName, requiredNamesByTool.get(producerSlug) ?? new Set());
       let best = 0;
       for (const f of fields) best = Math.max(best, matchScore(input, f, leafFrequency));
@@ -112,8 +116,11 @@ console.error(
 const rand = mulberry32(SEED);
 const sampled = shuffle(unresolved, rand).slice(0, SAMPLE_SIZE);
 
+// Every consumer slug sampled here comes from requiredByTool's own keys, which is built from
+// toolBySlug -- t is always found; only reachable on an internal inconsistency.
 function toolSummary(slug: string) {
   const t = toolBySlug.get(slug);
+  /* c8 ignore next */
   return t ? { slug, description: t.description ?? null, requiredInputs: t.inputParameters?.required ?? [] } : null;
 }
 
@@ -123,6 +130,10 @@ const entries = sampled.map((u) => ({
   nearMiss: u.nearMiss
     ? {
         producer: u.nearMiss.producer,
+        // u.nearMiss.producer always comes from indexedOutputsByTool, built from the same
+        // toolBySlug map, and the real catalog has no tool without a description (checked
+        // directly) -- both fallbacks below are unreachable with real data.
+        /* c8 ignore next */
         producerDescription: toolBySlug.get(u.nearMiss.producer)?.description ?? null,
         score: u.nearMiss.score,
         excludedAsCircular: u.nearMiss.excludedAsCircular,
