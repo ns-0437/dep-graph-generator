@@ -134,16 +134,43 @@ export function isContextField(
 }
 
 /**
- * True if the candidate producer itself requires this exact field name as one of its own
- * inputs -- meaning it can't actually be a useful precursor for discovering that value,
- * since you'd need the value already just to call the producer. E.g. GITHUB_CLOSE_ISSUE
- * requires issue_number as input, and its response naturally describes the issue it just
- * closed (so its output has a matching Issue.number field) -- but suggesting "call
- * GITHUB_CLOSE_ISSUE to get issue_number" is circular, not a real dependency chain. This
- * pattern turned out to affect 876 of 2101 edges (42%) before being excluded -- almost
- * every "single-entity action" tool (get/update/close/add-to a specific thing) echoes its
- * own identifying inputs back in its response.
+ * Canonical form of a (possibly multi-token) field name, for synonym-aware equality --
+ * "hook_id" and "webhook_id" both canonicalize to the same key via TOKEN_SYNONYMS. Exported
+ * so callers (generate.ts) can precompute each producer's canonicalized required-name set
+ * ONCE, the same way IndexedField precomputes leaf tokens once -- isCircularProducer runs
+ * once per (required field) x (candidate producer) pair, ~24.9 million times against the
+ * real catalog (see the performance notes in CLAUDE.md for matchScore's identical
+ * re-tokenization pitfall), so recomputing this inside the function itself on every call
+ * would reintroduce that exact cost.
  */
-export function isCircularProducer(fieldName: string, producerRequiredNames: ReadonlySet<string>): boolean {
-  return producerRequiredNames.has(fieldName);
+export function canonicalFieldKey(name: string): string {
+  return tokenize(name).map(canonicalToken).sort().join("_");
+}
+
+/**
+ * True if the candidate producer itself requires this same field (exactly, or under the
+ * TOKEN_SYNONYMS abbreviations above -- "hook_id" and "webhook_id" are the same field for
+ * this purpose) as one of its own inputs -- meaning it can't actually be a useful precursor
+ * for discovering that value, since you'd need the value already just to call the producer.
+ * E.g. GITHUB_CLOSE_ISSUE requires issue_number as input, and its response naturally
+ * describes the issue it just closed (so its output has a matching Issue.number field) --
+ * but suggesting "call GITHUB_CLOSE_ISSUE to get issue_number" is circular, not a real
+ * dependency chain. This pattern turned out to affect 876 of 2101 edges (42%) before being
+ * excluded -- almost every "single-entity action" tool (get/update/close/add-to a specific
+ * thing) echoes its own identifying inputs back in its response.
+ *
+ * The synonym-awareness matters for consistency with matchScore's own TOKEN_SYNONYMS use:
+ * without it, a hypothetical producer requiring "webhook_id" that also exposes a matching
+ * Webhook.id field could be wrongly treated as a genuine (non-circular) producer for some
+ * other consumer's "hook_id" -- the same circularity matchScore's hook/webhook synonym
+ * would otherwise miss. No tool in the current catalog requires "webhook_id" or "pat_id"
+ * literally (checked directly), so this doesn't change today's edge count, but it closes a
+ * real latent inconsistency between the two functions rather than leaving it for a future
+ * catalog update to surface as a silent false positive.
+ *
+ * Both arguments must already be canonicalFieldKey()'d by the caller -- this function does
+ * no tokenizing itself, so it stays a plain O(1) Set lookup.
+ */
+export function isCircularProducer(canonicalFieldName: string, producerCanonicalRequiredNames: ReadonlySet<string>): boolean {
+  return producerCanonicalRequiredNames.has(canonicalFieldName);
 }

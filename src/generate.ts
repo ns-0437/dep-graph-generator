@@ -16,6 +16,7 @@ import {
   matchScore,
   isContextField,
   isCircularProducer,
+  canonicalFieldKey,
   SCORE_THRESHOLD,
   MAX_PRODUCERS_PER_FIELD,
 } from "./lib/match.js";
@@ -66,12 +67,15 @@ export async function generate(tools: Tool[], client?: ChatClient): Promise<Grap
   const inputFrequency = buildInputFrequency([...requiredByTool.values()]);
   const totalTools = toolBySlug.size;
 
-  // A producer that itself requires the same field name as one of its own inputs can't
-  // actually help discover that value -- you'd need it already just to call the producer.
-  // See isCircularProducer in lib/match.ts for the concrete example and measured impact.
+  // A producer that itself requires the same field name (or its TOKEN_SYNONYMS-equivalent,
+  // e.g. "webhook_id" for "hook_id") as one of its own inputs can't actually help discover
+  // that value -- you'd need it already just to call the producer. See isCircularProducer in
+  // lib/match.ts for the concrete example and measured impact. Canonicalized once per
+  // producer here, not per (field, producer) pair inside the matching loop below -- the same
+  // precomputation discipline as IndexedField, since this runs ~24.9 million times.
   const requiredNamesByTool = new Map<string, Set<string>>();
   for (const [slug, inputs] of requiredByTool) {
-    requiredNamesByTool.set(slug, new Set(inputs.map((i) => i.name)));
+    requiredNamesByTool.set(slug, new Set(inputs.map((i) => canonicalFieldKey(i.name))));
   }
 
   const edges: Edge[] = [];
@@ -88,9 +92,10 @@ export async function generate(tools: Tool[], client?: ChatClient): Promise<Grap
         continue;
       }
       const candidates: { slug: string; score: number }[] = [];
+      const canonicalInputName = canonicalFieldKey(input.name);
       for (const [producerSlug, fields] of indexedOutputsByTool) {
         if (producerSlug === consumerSlug) continue;
-        if (isCircularProducer(input.name, requiredNamesByTool.get(producerSlug) ?? new Set())) continue;
+        if (isCircularProducer(canonicalInputName, requiredNamesByTool.get(producerSlug) ?? new Set())) continue;
         let best = 0;
         for (const f of fields) best = Math.max(best, matchScore(input, f, leafFrequency));
         if (best >= SCORE_THRESHOLD) candidates.push({ slug: producerSlug, score: best });

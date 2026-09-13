@@ -6,6 +6,7 @@ import {
   isGeneric,
   isContextField,
   isCircularProducer,
+  canonicalFieldKey,
   buildLeafFrequency,
   buildInputFrequency,
   indexFields,
@@ -160,15 +161,42 @@ test("isContextField: short-circuits on minCount before even computing the ratio
   assert.equal(isContextField("some_field", freq, 10), false);
 });
 
+// isCircularProducer takes already-canonicalized keys (see canonicalFieldKey's own docs for
+// why: it runs ~24.9 million times against the real catalog, so canonicalizing inside the
+// function itself on every call would reintroduce the exact re-tokenization cost
+// IndexedField exists to avoid for matchScore). Tests canonicalize inline, the way
+// generate.ts actually does it.
+function circular(fieldName: string, producerRequiredNames: string[]): boolean {
+  return isCircularProducer(canonicalFieldKey(fieldName), new Set(producerRequiredNames.map(canonicalFieldKey)));
+}
+
 test("isCircularProducer: true when the producer itself requires the same field", () => {
   // GITHUB_CLOSE_ISSUE requires issue_number to be called at all, so its response
   // describing "the issue I just closed" can't be a real discovery path for issue_number --
   // you needed the value already just to make the call.
-  assert.equal(isCircularProducer("issue_number", new Set(["owner", "repo", "issue_number"])), true);
+  assert.equal(circular("issue_number", ["owner", "repo", "issue_number"]), true);
 });
 
 test("isCircularProducer: false when the producer doesn't require that field itself", () => {
   // GITHUB_CREATE_AN_ISSUE doesn't need issue_number to be called (the number is assigned
   // by the creation itself) -- a genuine discovery, not an echo.
-  assert.equal(isCircularProducer("issue_number", new Set(["owner", "repo", "title"])), false);
+  assert.equal(circular("issue_number", ["owner", "repo", "title"]), false);
+});
+
+test("isCircularProducer: true across the hook/webhook synonym, not just exact names", () => {
+  // A hypothetical producer requiring "webhook_id" (not "hook_id") is exactly as circular
+  // for a "hook_id"-requiring consumer as one requiring "hook_id" literally would be --
+  // matchScore's TOKEN_SYNONYMS already treats these as the same field for scoring, so
+  // circularity has to agree, or a future catalog update could silently produce a false
+  // positive (a "circular" producer wrongly treated as genuine).
+  assert.equal(circular("hook_id", ["owner", "repo", "webhook_id"]), true);
+});
+
+test("isCircularProducer: true across the pat/token synonym", () => {
+  assert.equal(circular("pat_id", ["org", "token_id"]), true);
+});
+
+test("isCircularProducer: canonicalization doesn't cause unrelated fields to collide", () => {
+  // Guards against the synonym/sort-based canonicalization being too loose.
+  assert.equal(circular("hook_id", ["owner", "repo", "milestone_id"]), false);
 });
