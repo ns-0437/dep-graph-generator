@@ -345,6 +345,17 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   `isCircularProducer` on every call — it runs ~24.9 million times — regressed `generate()`
   from ~1.9s to ~5.7s; precomputing each producer's canonicalized keys once (same discipline
   as `IndexedField`) brought it back to ~2.2-2.8s.
+- (Checked after finding the naming-convention circularity bug above, in case the same
+  problem existed elsewhere: `isContextField`/`buildInputFrequency` count required-field
+  *names* by exact raw string too, not tokens. Verified directly against the real catalog
+  rather than assumed clean — every context field this filter actually relies on (`owner`,
+  `repo`, `org`, `issue_number`, `pull_number`) is spelled one way, consistently, everywhere
+  it appears. The one real split found catalog-wide (`project_id`: 10 tools, `projectId`: 2)
+  sums to 12, still under `CONTEXT_FIELD_MIN_COUNT` (20) either combined or apart, so it
+  can't currently flip a context-detection decision. `matchScore` itself was never at risk
+  here regardless — it already tokenizes both sides of every comparison via
+  `IndexedField`/`InputField`, so `project_id` vs `projectId` as a *matching* target already
+  resolves identically either way. Not fixed, because there's currently nothing to fix.)
 
 ## Commands
 
