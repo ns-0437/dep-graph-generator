@@ -423,12 +423,17 @@ npm run generate -- <catalog>    # run generator directly on an arbitrary catalo
 - Run `npm run typecheck && npm test && npm run selfcheck` after changes to `src/` to catch
   regressions before they reach CI.
 - **One-time setup**: run `git config core.hooksPath .githooks` to enable the pre-commit
-  hook, which type-checks *and tests* the staged snapshot (not the working tree) before
-  allowing a commit. This exists because of a real incident: a refactor's `git add` listed
-  two of three changed files, which typechecked fine locally (the third file's changes were
-  sitting right there on disk) but broke CI once pushed, since the committed snapshot was
-  incomplete. The hook uses `git stash --keep-index` specifically so it checks what would
-  actually be committed, not whatever else happens to be in the working tree — verified
-  directly by reconstructing that exact scenario and confirming the hook fails it. The test
-  step was added later, verified the same way (staged a deliberately failing test, confirmed
-  the hook rejects it, then removed the scratch test before committing the change for real).
+  hook, which type-checks *and runs the full coverage-gated test suite* (`npm run coverage`,
+  not just `npm test`) against the staged snapshot (not the working tree) before allowing a
+  commit. This exists because of a real incident: a refactor's `git add` listed two of three
+  changed files, which typechecked fine locally (the third file's changes were sitting right
+  there on disk) but broke CI once pushed, since the committed snapshot was incomplete. The
+  hook uses `git stash --keep-index` specifically so it checks what would actually be
+  committed, not whatever else happens to be in the working tree — verified directly by
+  reconstructing that exact scenario and confirming the hook fails it. The test step was
+  added later, verified the same way (staged a deliberately failing test, confirmed the hook
+  rejects it, then removed the scratch test before committing the change for real) — and
+  once coverage was gated at 100% project-wide, upgraded from `npm test` to `npm run
+  coverage` so a coverage-dropping change fails locally before the commit even happens, not
+  only on the CI round-trip; verified the same way again (a deliberately uncovered function,
+  confirmed the hook catches the drop, then removed it).
