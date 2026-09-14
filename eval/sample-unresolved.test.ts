@@ -4,6 +4,8 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { generate } from "../src/generate.js";
+import { loadCatalog } from "../src/lib/catalog.js";
 
 /**
  * A smoke test, not a correctness test of the underlying heuristic (that's covered by
@@ -38,10 +40,14 @@ test("sample-unresolved.ts runs end-to-end against the real catalog and produces
   }
 });
 
-test("sample-unresolved.ts's totalUnresolved matches generate()'s own reported count", () => {
+test("sample-unresolved.ts's totalUnresolved matches generate()'s own reported count", async () => {
   // The specific invariant that drifted for one commit: this script re-derives `unresolved`
   // independently of generate.ts, so nothing but running both and comparing catches them
-  // silently disagreeing again in the future.
+  // silently disagreeing again in the future. Calls the real generate() function in-process
+  // (capturing its console.error summary line) rather than spawning `node src/generate.ts`
+  // as a subprocess -- that would write to the shared dependency_graph.json/graph.html paths
+  // with no override of its own, racing generate.test.ts's CLI subprocess test on those exact
+  // files (see the fix for the identical problem in sample-edges.test.ts).
   const dir = mkdtempSync(join(tmpdir(), "sample-unresolved-parity-test-"));
   const outPath = join(dir, "unresolved-sample.json");
   try {
@@ -49,10 +55,18 @@ test("sample-unresolved.ts's totalUnresolved matches generate()'s own reported c
     assert.equal(sampleResult.status, 0);
     const sample = JSON.parse(readFileSync(outPath, "utf-8"));
 
-    const generateResult = spawnSync("node", ["--import", "tsx", "src/generate.ts", "github_catalog.json"], { encoding: "utf-8" });
-    assert.equal(generateResult.status, 0, `generate.ts exited ${generateResult.status}: ${generateResult.stderr}`);
-    const match = generateResult.stderr.match(/(\d+) unresolved by heuristics/);
-    assert.ok(match, "expected generate.ts's stderr to report an unresolved count");
+    const originalConsoleError = console.error;
+    let captured = "";
+    console.error = (...args: unknown[]) => {
+      captured += args.join(" ") + "\n";
+    };
+    try {
+      await generate(loadCatalog("github_catalog.json"));
+    } finally {
+      console.error = originalConsoleError;
+    }
+    const match = captured.match(/(\d+) unresolved by heuristics/);
+    assert.ok(match, `expected generate()'s console.error output to report an unresolved count, got: ${captured}`);
     const generateUnresolvedCount = Number(match![1]);
 
     assert.equal(sample.totalUnresolved, generateUnresolvedCount);
