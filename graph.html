@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-yR0sbEZMCJ/7ko2GfGvXNvQ6rgkebsmQZh7Dfxu6bJk='; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none';" />
 <title>Dependency Graph</title>
 <style>
   html, body { margin:0; height:100%; background:#0b0d12; color:#e6e6e6; font-family:-apple-system,Segoe UI,sans-serif; overflow:hidden; }
@@ -51,7 +52,7 @@ const GRAPH = {"nodes":[{"id":"GITHUB_ABORT_REPOSITORY_MIGRATION","service":"rep
   // touching tooltip.innerHTML below -- confirmed this was a real, working DOM XSS before
   // the fix (a hover on such a node executed arbitrary script), not just a theoretical one.
   // (No backticks in this comment block: it lives inside the outer template literal that
-  // builds this whole HTML document, so a literal backtick here would terminate it early.)
+  // builds this whole script's content, so a literal backtick here would terminate it early.)
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
