@@ -297,6 +297,20 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   HTML/script. The current catalog doesn't trigger this (checked directly), but the
   generator explicitly promises to generalize to any toolkit's catalog. Fixed by escaping
   every `<` in the embedded JSON before writing it.
+- A second, more serious vulnerability in the same file, found and fixed later: the node
+  tooltip was built via string-concatenated `innerHTML` using `hit.id`/`hit.service`/each
+  edge's `label`/`from` — all catalog-derived — with no escaping at all. Unlike the bug
+  above, `escapeForInlineScript` doesn't cover this: it protects the JSON-embedding
+  boundary, but by the time these values reach the tooltip code they're already parsed back
+  to their original form. **Confirmed real and exploitable, not theoretical**, by actually
+  running it: generated a graph from a catalog with a tool slug shaped like an `<img>` tag
+  with an `onerror` handler, hovered the node in a real browser, and watched
+  `document.title`/`document.body.style.background` actually change — arbitrary script
+  execution from hovering a maliciously-named node. Fixed with an `escapeHtml()` helper
+  added to the generated page's own script (this runs in the browser at tooltip-render
+  time, not in Node at generation time), wrapping all four values before the `innerHTML`
+  assignment; re-ran the identical exploit afterward and confirmed it now renders as inert,
+  visibly-escaped text.
 - `flattenOutputs` only merged `allOf`, not `oneOf`/`anyOf` — see the design-decisions
   section above for the measured impact (real fields silently lost for tools whose response
   shape used `anyOf`, which the actual catalog does 174 times).
@@ -329,6 +343,19 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   same `pointer-events: none` treatment `#tooltip` already had.
 - (Checked, not a bug, but verified rather than assumed: `npm audit` reports 0
   vulnerabilities in the current dependency tree.)
+- (Checked, not a bug: a security audit for prototype pollution, prompted by finding the
+  tooltip XSS above. `JSON.parse` treats `"__proto__"` as a normal own property, not the
+  prototype setter — verified directly, not assumed — and every place a catalog-derived
+  string is used as a plain-object key (only one: `schema.ts`'s `defs[refName]`) is a read,
+  never a write; grepped the whole `src`/`eval` tree for dynamic bracket-notation
+  *assignment* into a plain object, the actual pollution vector, and found none — only
+  `Map.set`, which is immune by construction. Locked in with a real regression test: a
+  catalog with a `$ref` pointing at a `$defs` entry literally named `__proto__` and fields
+  named `constructor`, run through the full `generate()` pipeline, confirmed
+  `Object.prototype` gains zero new properties. Built via `JSON.parse` on real JSON text,
+  not a JS object literal — a literal `{ __proto__: ... }` in source is special-cased by
+  the language to set the actual prototype, which would test something different from what
+  `loadCatalog()` actually does.)
 - (Checked, deliberately not acted on: `npm outdated` shows both `openai` and `typescript`
   have a major version available beyond what the `^` ranges in package.json allow — current
   major versions are patched and current within themselves. Bumping either is a real,
