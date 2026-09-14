@@ -103,7 +103,13 @@ export async function generate(tools: Tool[], client?: ChatClient): Promise<Grap
       const canonicalInputName = canonicalFieldKey(input.name);
       for (const [producerSlug, fields] of indexedOutputsByTool) {
         if (producerSlug === consumerSlug) continue;
-        if (isCircularProducer(canonicalInputName, requiredNamesByTool.get(producerSlug) ?? new Set())) continue;
+        // requiredNamesByTool and indexedOutputsByTool are both built by iterating the same
+        // toolBySlug map with no filtering in either pass, so producerSlug is guaranteed to
+        // be a key here -- not just in practice, provably from how both maps are
+        // constructed above. `!` instead of a `?? new Set()` fallback that could never
+        // actually run (and, if it somehow did, would silently hide a real bug rather than
+        // surface it).
+        if (isCircularProducer(canonicalInputName, requiredNamesByTool.get(producerSlug)!)) continue;
         let best = 0;
         for (const f of fields) best = Math.max(best, matchScore(input, f, leafFrequency));
         if (best >= SCORE_THRESHOLD) candidates.push({ slug: producerSlug, score: best });

@@ -90,11 +90,11 @@ for (const [consumerSlug, requiredInputs] of requiredByTool) {
     const canonicalInputName = canonicalFieldKey(input.name);
     for (const [producerSlug, fields] of indexedOutputsByTool) {
       if (producerSlug === consumerSlug) continue;
-      // requiredNamesByTool and indexedOutputsByTool are both built from the same toolBySlug
-      // map, so producerSlug is always present in both; only reachable on an internal
-      // inconsistency between the two.
-      /* c8 ignore next */
-      const circular = isCircularProducer(canonicalInputName, requiredNamesByTool.get(producerSlug) ?? new Set());
+      // requiredNamesByTool and indexedOutputsByTool are both built by iterating the same
+      // toolBySlug map with no filtering in either pass, so producerSlug is guaranteed to be
+      // a key here -- provably, not just in practice (see generate.ts's identical reasoning
+      // for its own copy of this line). `!` instead of a fallback that could never run.
+      const circular = isCircularProducer(canonicalInputName, requiredNamesByTool.get(producerSlug)!);
       let best = 0;
       for (const f of fields) best = Math.max(best, matchScore(input, f, leafFrequency));
       if (best >= SCORE_THRESHOLD && !circular) {
