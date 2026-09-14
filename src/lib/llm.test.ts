@@ -122,6 +122,50 @@ test("llmDisambiguate degrades gracefully on a malformed/unparseable response in
   assert.deepEqual(result, []);
 });
 
+test("llmDisambiguate degrades gracefully when the response is valid JSON but not an array", async () => {
+  // A distinct failure mode from "malformed/unparseable" above: this is valid JSON --
+  // JSON.parse succeeds -- but a bare object (a plausible LLM formatting slip: answering
+  // with the single choice object directly instead of wrapping it in an array) isn't
+  // iterable, so `for (const {idx, ci} of parsed)` throws. Must land in the same catch as a
+  // parse failure, not crash the whole batch/process.
+  const outputsByTool = indexedOutputsByTool([["PRODUCER", [outField("id", "Channel")]]]);
+  const fakeClient: ChatClient = {
+    chat: {
+      completions: {
+        create: async () => ({ choices: [{ message: { content: '{"idx":0,"ci":0}' } }] }),
+      },
+    },
+  };
+  const result = await llmDisambiguate(
+    [{ consumer: "CONSUMER", field: input("channel_id") }],
+    outputsByTool,
+    fakeClient,
+  );
+  assert.deepEqual(result, []);
+});
+
+test("llmDisambiguate ignores idx/ci values that are out of range, without crashing", async () => {
+  // The LLM can hallucinate indices outside what was actually offered -- batch[idx] and
+  // candidates[ci] are plain array access (out-of-range returns undefined, doesn't throw),
+  // guarded by `if (u && c)` before ever building an edge from them.
+  const outputsByTool = indexedOutputsByTool([["PRODUCER", [outField("id", "Channel")]]]);
+  const fakeClient: ChatClient = {
+    chat: {
+      completions: {
+        create: async () => ({
+          choices: [{ message: { content: '[{"idx":99,"ci":0},{"idx":0,"ci":99},{"idx":-1,"ci":0}]' } }],
+        }),
+      },
+    },
+  };
+  const result = await llmDisambiguate(
+    [{ consumer: "CONSUMER", field: input("channel_id") }],
+    outputsByTool,
+    fakeClient,
+  );
+  assert.deepEqual(result, []);
+});
+
 test("llmDisambiguate degrades gracefully when the response has no choices/content at all", async () => {
   // Distinct from the "malformed JSON" case above: here the response shape itself is
   // missing (choices: [] or content: null), so `resp.choices[0]?.message?.content ?? "[]"`
