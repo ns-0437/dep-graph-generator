@@ -35,6 +35,26 @@ test("renderVisualizationHtml produces exactly one script tag even with a malici
   assert.equal((html.match(/<\/script>/g) || []).length, 1);
 });
 
+test("renderVisualizationHtml escapes catalog-derived strings before the tooltip's innerHTML assignment", () => {
+  // Regression guard for a real, confirmed-exploitable DOM XSS: hit.id/hit.service/e.label/
+  // e.from are all catalog-derived (the generator explicitly promises to generalize to any
+  // toolkit's catalog), and the tooltip is built via string-concatenated innerHTML, not
+  // textContent or DOM methods. Verified live in a real browser before this fix: a tool
+  // slug like an <img> tag with an onerror handler executed arbitrary script on hover
+  // (confirmed via document.title/document.body.style.background actually changing), and
+  // confirmed blocked after it (the payload rendered as escaped, inert text instead).
+  // escapeForInlineScript (tested above) is a different, narrower fix for a different
+  // problem -- it only protects the JSON-in-<script>-tag boundary, not this separate
+  // innerHTML sink, which operates on values already parsed back to their original form.
+  const html = renderVisualizationHtml({ nodes: [], edges: [] });
+  assert.match(html, /function escapeHtml\(/, "an HTML-escaping helper must be defined");
+  const tooltipAssignment = html.match(/tooltip\.innerHTML\s*=[\s\S]*?;\n/)?.[0];
+  assert.ok(tooltipAssignment, "the tooltip.innerHTML assignment must exist");
+  for (const expr of ["escapeHtml(hit.id)", "escapeHtml(hit.service)", "escapeHtml(e.label)", "escapeHtml(e.from)"]) {
+    assert.ok(tooltipAssignment!.includes(expr), `tooltip.innerHTML must escape ${expr}`);
+  }
+});
+
 test("renderVisualizationHtml gives the fixed legend overlay pointer-events:none", () => {
   // Regression guard: a position:fixed element paints above in-flow content regardless of
   // z-index, so without pointer-events:none the legend box silently swallowed mousedown/drag

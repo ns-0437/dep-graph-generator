@@ -64,6 +64,19 @@ const GRAPH = ${escapeForInlineScript(JSON.stringify(graph))};
   const matchCountEl = document.getElementById("match-count");
   const loadingEl = document.getElementById("loading");
 
+  // Node ids, service names, and edge labels all come from the catalog -- the generator
+  // explicitly promises to generalize to any toolkit's catalog (see escapeForInlineScript's
+  // own docs for the identical reasoning on the JSON-embedding side), so a malicious catalog
+  // could name a tool an img tag with an onerror handler and have that string flow straight
+  // into the tooltip. Every one of those values gets HTML-escaped through this before ever
+  // touching tooltip.innerHTML below -- confirmed this was a real, working DOM XSS before
+  // the fix (a hover on such a node executed arbitrary script), not just a theoretical one.
+  // (No backticks in this comment block: it lives inside the outer template literal that
+  // builds this whole HTML document, so a literal backtick here would terminate it early.)
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
   const degree = new Map();
   for (const n of GRAPH.nodes) degree.set(n.id, 0);
   for (const e of GRAPH.edges) {
@@ -269,11 +282,11 @@ const GRAPH = ${escapeForInlineScript(JSON.stringify(graph))};
       const out = edges.filter((e) => e.from === hit.id);
       const inc = edges.filter((e) => e.to === hit.id);
       tooltip.innerHTML =
-        '<div class="slug">' + hit.id + "</div>" +
-        (hit.service ? "service: " + hit.service + "<br/>" : "") +
+        '<div class="slug">' + escapeHtml(hit.id) + "</div>" +
+        (hit.service ? "service: " + escapeHtml(hit.service) + "<br/>" : "") +
         "supplies " + out.length + " field(s) to other tools<br/>" +
         "needs " + inc.length + " field(s) from other tools" +
-        (inc.length ? "<br/><br/>" + inc.slice(0, 6).map((e) => e.label + " &larr; " + e.from).join("<br/>") : "");
+        (inc.length ? "<br/><br/>" + inc.slice(0, 6).map((e) => escapeHtml(e.label) + " &larr; " + escapeHtml(e.from)).join("<br/>") : "");
     } else {
       canvas.style.cursor = "grab";
       tooltip.style.display = "none";
