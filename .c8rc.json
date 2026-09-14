@@ -4,5 +4,12 @@
   "lines": 100,
   "functions": 100,
   "statements": 100,
-  "branches": 100
+  "branches": 100,
+  "all": true,
+  "include": ["src/**/*.ts", "eval/**/*.ts"],
+  "exclude": [
+    "**/*.test.ts",
+    "src/types.ts",
+    "src/selfcheck.ts"
+  ]
 }

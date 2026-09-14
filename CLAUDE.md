@@ -245,6 +245,20 @@ Known limitations (heuristic can't catch these):
   `c8 ignore`-marked with an explanation, since constructing them would need independently
   injectable inputs those scripts don't have; the difference is those really do depend on
   external data being a certain way, not on this codebase's own internal invariants.
+  - **A real blind spot in the 100% claim, found by checking rather than trusting it**: by
+    default, c8 (like most coverage tools) only reports on files that were actually imported
+    during the test run -- a source file nothing ever requires is invisible to the report
+    entirely, not shown as 0%, just absent, so "100% coverage" could quietly mean "100% of
+    the files something happened to touch." Verified this wasn't hiding anything by adding
+    `all: true` with an explicit `include` (`src/**/*.ts`, `eval/**/*.ts`): it surfaced
+    exactly one real gap, `src/selfcheck.ts` at a flat 0%, invisible in every previous
+    coverage run this whole project. Not a bug to fix, though -- `selfcheck.ts` is provided
+    and deliberately left unmodified (see the file-structure section above), so it isn't a
+    fair target for this project's own coverage gate. Added it and `src/types.ts`
+    (interfaces only, no executable code to cover) to `.c8rc.json`'s `exclude` alongside
+    `all: true`, so the 100% figure now means what it claims — every file that's actually
+    this project's own code and could meaningfully be covered, is — rather than being
+    silently narrowed to whatever the test suite happened to import.
   - **Correcting an earlier claim in this file's history**: an earlier version of this
     section said generate.ts's edge-emission loop showing as uncovered was "a
     tsx-transform/sourcemap attribution quirk... not an actual gap." That specific claim was
