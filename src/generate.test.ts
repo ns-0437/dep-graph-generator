@@ -266,6 +266,48 @@ test("generate(): a duplicate unresolved field name doesn't produce a duplicate 
   assert.equal(matching.length, 1);
 });
 
+test("generate(): a catalog with __proto__/constructor keys can't pollute Object.prototype", async () => {
+  // The one place a catalog-derived string is used as a plain-object key (not a Map key,
+  // which is immune to this by construction) is schema.ts's `defs[refName]` -- a read, not a
+  // write, so even a malicious refName can only retrieve a value that was legitimately
+  // parsed there, never redirect into the actual prototype chain. Verified with a real
+  // catalog exercising exactly that: a tool whose $ref points at a $defs entry literally
+  // named "__proto__", containing a "constructor" property, plus a consumer requiring
+  // "__proto__"/"constructor" as field names.
+  //
+  // Built via JSON.parse on real JSON text -- not a JS object literal -- because a literal
+  // `{ __proto__: ... }` in source code is special-cased by the language to set the actual
+  // prototype rather than create an own property, which would test something different from
+  // what loadCatalog() actually does (JSON.parse on a catalog file's real file contents).
+  const maliciousJson = JSON.stringify([
+    {
+      slug: "PRODUCER",
+      inputParameters: { required: [] },
+      outputParameters: {
+        properties: { data: { $ref: "#/$defs/__proto__" } },
+        $defs: {
+          __proto__: { type: "object", properties: { constructor: { type: "string" }, polluted: { type: "string" } } },
+        },
+      },
+    },
+    {
+      slug: "CONSUMER",
+      inputParameters: { required: ["__proto__", "constructor"] },
+      outputParameters: { properties: {} },
+    },
+  ]);
+  const catalog = JSON.parse(maliciousJson);
+
+  const protoKeysBefore = Object.keys(Object.prototype);
+  const graph = await generate(catalog);
+  assert.deepEqual(Object.keys(Object.prototype), protoKeysBefore, "Object.prototype must gain no new enumerable properties");
+  assert.equal((({} as Record<string, unknown>)).polluted, undefined, "a fresh plain object must not inherit a polluted property");
+  assert.deepEqual(
+    graph.nodes.map((n) => n.id).sort(),
+    ["CONSUMER", "PRODUCER"],
+  );
+});
+
 test("generate(): silently skips a tool with no slug/name/function.name instead of producing a bad node", async () => {
   const catalog = [
     // No slug, no name, no function.name -- slugOf() returns undefined for this one.
