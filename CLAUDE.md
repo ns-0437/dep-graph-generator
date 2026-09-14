@@ -227,21 +227,24 @@ Known limitations (heuristic can't catch these):
   `sample-unresolved.ts` and `generate.ts` and asserts their unresolved-field counts agree --
   the exact invariant that broke.
 - `npm run coverage` — via `c8` (switched from Node's `--experimental-test-coverage`, see
-  below), gated with `.c8rc.json` (`--check-coverage` at 100% lines/functions/statements, 99%
-  branches — a hair below the current measured number, so a real regression still fails the
-  build without masking legitimate small fluctuation): **100% line / 100% function / 99.35%
-  branch** coverage across every file (the branch number climbed from an earlier 93.58% by
-  deliberately reading c8's own uncovered-line report and writing a test for each real gap it
-  named, rather than assuming high line coverage meant the logic was actually exercised).
-  Every `lib/*.ts` module and `generate.ts` are fully line-covered; `catalog.ts`, `llm.ts`,
-  `match.ts`, and every `eval/*`/`eval/lib/*` script are fully *branch*-covered too. The
-  remaining uncovered branches (`generate.ts`'s `requiredNamesByTool.get(producerSlug) ?? new
-  Set()`, `schema.ts`'s `path ? ... : key`, and a handful of `?? `/`?.` fallbacks in the eval
-  sampling scripts) are all defensive code that's genuinely unreachable given how those
-  functions are actually invoked and what the real committed catalog/graph data looks like —
-  confirmed by tracing call sites and, for the eval scripts, checking the real catalog
-  directly (e.g. 0 of 893 tools lack a `description`), not left uncovered by not looking, and
-  marked with `c8 ignore` plus an explanation rather than silently excluded.
+  below), gated with `.c8rc.json` (`--check-coverage` at 100% across the board — lines,
+  functions, statements, *and* branches): **100% coverage on every metric, every file, no
+  exceptions** (the branch number climbed from an earlier 93.58% by deliberately reading c8's
+  own uncovered-line report and writing a test for each real gap it named, rather than
+  assuming high line coverage meant the logic was actually exercised). What were previously a
+  handful of `c8 ignore`-marked defensive fallbacks (`generate.ts`'s and
+  `eval/sample-unresolved.ts`'s `requiredNamesByTool.get(producerSlug) ?? new Set()`,
+  `schema.ts`'s `path ? ... : key`) turned out, on closer inspection, to be *provably*
+  unreachable rather than just unreachable in practice — each one guarded a case that the
+  surrounding code's own construction makes structurally impossible, not merely unlikely — so
+  they were removed outright (a `!` non-null assertion in the two `Map.get` cases, the dead
+  branch deleted entirely in `schema.ts`) instead of continuing to carry ignore comments for
+  code that could never run under any input. The genuinely-hard-to-reach cases in the eval
+  sampling scripts (e.g. a mismatch between `dependency_graph.json` and `github_catalog.json`,
+  or a catalog tool with no `description` — checked directly: 0 of 893 have one) are still
+  `c8 ignore`-marked with an explanation, since constructing them would need independently
+  injectable inputs those scripts don't have; the difference is those really do depend on
+  external data being a certain way, not on this codebase's own internal invariants.
   - **Correcting an earlier claim in this file's history**: an earlier version of this
     section said generate.ts's edge-emission loop showing as uncovered was "a
     tsx-transform/sourcemap attribution quirk... not an actual gap." That specific claim was
