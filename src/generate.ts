@@ -28,6 +28,14 @@ import { renderVisualizationHtml } from "./lib/visualization.js";
 import type { Tool, GraphNode, Edge, Graph, OutField, InputField } from "./types.js";
 
 const CATALOG_PATH = process.argv.length > 2 ? process.argv[process.argv.length - 1] : undefined;
+// Deliberately fixed, no CLI override -- generator.json's contract is `node generate.ts
+// <catalogPath>` writing to this exact path. This has bitten test-writing twice already
+// (see CLAUDE.md's bug list): a test that needs a generated graph and spawns this file as a
+// subprocess writes here, the one path generate.test.ts's own CLI test also reads-before/
+// writes/restores-after -- and Node's test runner runs different test files concurrently by
+// default, so the two race. If a test needs a fresh graph, call the exported `generate()`
+// function in-process (see sample-edges.test.ts/sample-unresolved.test.ts) instead of
+// spawning this file as a subprocess with no output override of its own.
 const OUT_PATH = "dependency_graph.json";
 
 /**

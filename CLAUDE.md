@@ -384,6 +384,20 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
     itself stayed correct. Caught by the exact kind of drift the script's own docstring
     warns about: it reported 229 unresolved fields against a catalog where `generate.ts`
     reports 230. Fixed to canonicalize the same way `generate.ts` does.
+  - A real concurrency bug, found twice because the first fix didn't generalize the lesson:
+    `generate.ts` always writes to `dependency_graph.json`/`graph.html` with no output-path
+    override, and `generate.test.ts`'s CLI subprocess test reads-before/writes/restores-after
+    that exact shared path around its own test. Node's test runner runs different test
+    *files* concurrently by default, so any *other* test file that spawns `node
+    src/generate.ts` as a subprocess (rather than calling the exported `generate()` function
+    in-process) races that read-modify-restore cycle — a plausible explanation for an
+    earlier, never-explained, non-reproducible single test flake from a previous round. Found
+    and fixed in `sample-edges.test.ts` first (a fixture-generation `before()` hook); the
+    identical mistake was then found separately in `sample-unresolved.test.ts`'s own parity
+    check, missed by the first fix because it was in a different file. Both now call
+    `generate()` in-process instead. `generate.ts`'s own `OUT_PATH` constant now carries a
+    comment warning against this specific mistake, so a third instance doesn't need
+    rediscovering the same way.
 
 ## Commands
 
