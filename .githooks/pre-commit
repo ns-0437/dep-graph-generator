@@ -26,13 +26,13 @@ trap cleanup EXIT
 echo "pre-commit: type-checking the staged snapshot..."
 npm run typecheck
 
-echo "pre-commit: running tests against the staged snapshot..."
+echo "pre-commit: running tests + coverage gate against the staged snapshot..."
 TEST_LOG=$(mktemp)
-if npm test > "$TEST_LOG" 2>&1; then
-  echo "pre-commit: tests passed ($(grep -c '^ok ' "$TEST_LOG") ok)."
+if npm run coverage > "$TEST_LOG" 2>&1; then
+  echo "pre-commit: tests + coverage passed ($(grep -c '^ok ' "$TEST_LOG") ok)."
   rm -f "$TEST_LOG"
 else
-  echo "pre-commit: tests FAILED against the staged snapshot -- full output follows:" >&2
+  echo "pre-commit: tests or coverage gate FAILED against the staged snapshot -- full output follows:" >&2
   cat "$TEST_LOG" >&2
   rm -f "$TEST_LOG"
   exit 1
