@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { tokenize } from "./tokenize.js";
 import { looseCandidates, llmDisambiguate } from "./llm.js";
-import { indexFields } from "./match.js";
+import { canonicalFieldKey, indexFields } from "./match.js";
 import type { ChatClient } from "./llm.js";
 import type { IndexedField } from "./match.js";
 import type { InputField, OutField } from "../types.js";
@@ -42,6 +42,70 @@ test("looseCandidates excludes the consumer itself and respects the limit", () =
   const candidates = looseCandidates(input("id"), "CONSUMER", outputsByTool, 2);
   assert.equal(candidates.length, 2);
   assert.ok(!candidates.some((c) => c.slug === "CONSUMER"));
+});
+
+test("looseCandidates excludes a producer that itself requires the same field (circular), given requiredNamesByTool", () => {
+  // Regression guard: the heuristic matching loop in generate.ts already excludes circular
+  // producers via isCircularProducer (876/2101 real edges, per match.ts's own docs on the
+  // pattern) -- but before this fix, looseCandidates/llmDisambiguate never received
+  // requiredNamesByTool at all, so a field the heuristic couldn't resolve *because* every
+  // real candidate was circular got handed to the LLM with those same circular producers
+  // still in its candidate list, undefended. The LLM reasons purely on field/type-name
+  // semantics and has no way to know CIRCULAR_PRODUCER is circular -- confirmed against the
+  // real GitHub catalog that 32 of 230 LLM-bound fields had a circular producer as their
+  // single top-ranked candidate before this fix.
+  const outputsByTool = indexedOutputsByTool([
+    ["CIRCULAR_PRODUCER", [outField("package_type", "Package")]],
+    ["CLEAN_PRODUCER", [outField("package_type", "Package")]],
+  ]);
+  const requiredNamesByTool = new Map<string, ReadonlySet<string>>([
+    ["CIRCULAR_PRODUCER", new Set([canonicalFieldKey("package_type")])],
+    ["CLEAN_PRODUCER", new Set()],
+  ]);
+  const candidates = looseCandidates(input("package_type"), "CONSUMER", outputsByTool, 5, requiredNamesByTool);
+  assert.deepEqual(
+    candidates.map((c) => c.slug),
+    ["CLEAN_PRODUCER"],
+  );
+});
+
+test("looseCandidates keeps all candidates when requiredNamesByTool is omitted (existing callers unaffected)", () => {
+  const outputsByTool = indexedOutputsByTool([["CIRCULAR_PRODUCER", [outField("package_type", "Package")]]]);
+  const candidates = looseCandidates(input("package_type"), "CONSUMER", outputsByTool, 5);
+  assert.deepEqual(
+    candidates.map((c) => c.slug),
+    ["CIRCULAR_PRODUCER"],
+  );
+});
+
+test("llmDisambiguate never offers the LLM a circular producer as a candidate", async () => {
+  const outputsByTool = indexedOutputsByTool([
+    ["CIRCULAR_PRODUCER", [outField("package_type", "Package")]],
+    ["CLEAN_PRODUCER", [outField("package_type", "Package")]],
+  ]);
+  const requiredNamesByTool = new Map<string, ReadonlySet<string>>([
+    ["CIRCULAR_PRODUCER", new Set([canonicalFieldKey("package_type")])],
+    ["CLEAN_PRODUCER", new Set()],
+  ]);
+  let sentCandidateSlugs: string[] = [];
+  const fakeClient: ChatClient = {
+    chat: {
+      completions: {
+        create: async (params) => {
+          const items = JSON.parse(params.messages[0]!.content.split("Items:\n")[1]!);
+          sentCandidateSlugs = items[0].candidate_producers.map((c: { producer_tool: string }) => c.producer_tool);
+          return { choices: [{ message: { content: "[]" } }] };
+        },
+      },
+    },
+  };
+  await llmDisambiguate(
+    [{ consumer: "CONSUMER", field: input("package_type") }],
+    outputsByTool,
+    fakeClient,
+    requiredNamesByTool,
+  );
+  assert.deepEqual(sentCandidateSlugs, ["CLEAN_PRODUCER"]);
 });
 
 test("llmDisambiguate returns [] immediately when there's nothing unresolved (no client call)", async () => {

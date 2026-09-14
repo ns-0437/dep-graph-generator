@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { IndexedField } from "./match.js";
+import { canonicalFieldKey, isCircularProducer, type IndexedField } from "./match.js";
 import type { Edge, InputField } from "../types.js";
 
 /** The minimal slice of the OpenAI SDK's surface llmDisambiguate actually calls, so tests
@@ -20,16 +20,28 @@ export interface ChatClient {
  * Loosely-matching candidates for a required field the heuristic couldn't resolve: any
  * output leaf sharing at least one token with the input name, ranked by overlap. Used to
  * hand an LLM a short, pre-filtered multiple-choice list instead of the entire catalog.
+ *
+ * requiredNamesByTool excludes circular producers the same way the heuristic matching loop
+ * in generate.ts does (see isCircularProducer in match.ts): a field the heuristic couldn't
+ * resolve precisely *because* every real candidate was circular must not hand those same
+ * circular producers to the LLM undefended -- it has no way to know a candidate is circular
+ * from field/type names alone, and will happily pick the semantically obvious (but circular)
+ * one right back. Optional only so existing direct callers/tests that don't care about
+ * circularity aren't forced to pass an empty map.
  */
 export function looseCandidates(
   input: InputField,
   consumerSlug: string,
   outputsByTool: Map<string, IndexedField[]>,
   limit: number,
+  requiredNamesByTool?: ReadonlyMap<string, ReadonlySet<string>>,
 ) {
+  const canonicalInputName = canonicalFieldKey(input.name);
   const scored: { slug: string; leaf: string; type: string; overlap: number }[] = [];
   for (const [slug, fields] of outputsByTool) {
     if (slug === consumerSlug) continue;
+    const requiredNames = requiredNamesByTool?.get(slug);
+    if (requiredNames && isCircularProducer(canonicalInputName, requiredNames)) continue;
     for (const f of fields) {
       const overlap = f.tokens.filter((t) => input.tokens.includes(t)).length;
       if (overlap > 0) scored.push({ slug, leaf: f.field.name, type: f.field.parentType, overlap });
@@ -57,6 +69,7 @@ export async function llmDisambiguate(
   unresolved: { consumer: string; field: InputField }[],
   outputsByTool: Map<string, IndexedField[]>,
   client?: ChatClient,
+  requiredNamesByTool?: ReadonlyMap<string, ReadonlySet<string>>,
 ): Promise<Edge[]> {
   if (unresolved.length === 0) return [];
   const apiKey = process.env.OPENAI_API_KEY;
@@ -66,7 +79,7 @@ export async function llmDisambiguate(
   client ??= new OpenAI({ apiKey, baseURL });
 
   const items = unresolved
-    .map((u) => ({ ...u, candidates: looseCandidates(u.field, u.consumer, outputsByTool, 5) }))
+    .map((u) => ({ ...u, candidates: looseCandidates(u.field, u.consumer, outputsByTool, 5, requiredNamesByTool) }))
     .filter((u) => u.candidates.length > 0);
 
   const BATCH = 25;

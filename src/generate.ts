@@ -130,7 +130,7 @@ export async function generate(tools: Tool[], client?: ChatClient): Promise<Grap
 
   const heuristicEdgeCount = edges.length;
 
-  const llmEdges = await llmDisambiguate(unresolved, indexedOutputsByTool, client);
+  const llmEdges = await llmDisambiguate(unresolved, indexedOutputsByTool, client, requiredNamesByTool);
   for (const e of llmEdges) {
     const key = `${e.from}->${e.to}->${e.label}`;
     if (seen.has(key)) continue;
