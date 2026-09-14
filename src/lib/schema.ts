@@ -68,7 +68,13 @@ export function flattenOutputs(tool: Tool): OutField[] {
     const props = resolved.properties;
     if (!props) return;
     for (const [key, val] of Object.entries<any>(props)) {
-      const childPath = path ? `${path}.${key}` : key;
+      // `path` is never empty here -- walk()'s only entry point (below) starts it at "data",
+      // and every recursive call either passes it through unchanged or as this same
+      // already-non-empty childPath, so there's no path-less case to handle. (A
+      // `path ? ... : key` fallback used to sit here for that case; removed as genuinely
+      // dead code rather than left with a coverage-ignore comment, since it's private to
+      // this function and provably unreachable, not just unreachable in practice.)
+      const childPath = `${path}.${key}`;
       if (isEffectivelyContainer(val)) {
         walk(val, childPath, currentType, visited, depth + 1);
       } else {
