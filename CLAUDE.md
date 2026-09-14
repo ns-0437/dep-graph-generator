@@ -373,6 +373,24 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   (hover/tooltip, pan, click-to-highlight, wheel-zoom, search filtering, the "show isolated"
   checkbox's async re-layout) under the CSP and confirmed zero violations, so the policy
   isn't accidentally breaking the page's own legitimate inline script.
+- The heuristic matching loop excludes any producer that itself requires the same field it
+  would supply (`isCircularProducer`, see that function's own docs for the 876/2101-edge
+  measured impact) — but `looseCandidates`/`llmDisambiguate` never received
+  `requiredNamesByTool` and only excluded the exact consumer slug, so a field the heuristic
+  couldn't resolve *because every real candidate was circular* got forwarded to the LLM with
+  those same circular producers still in its candidate list, undefended. The LLM reasons
+  purely on field/type-name semantics with no way to know a candidate is circular, and has
+  every reason to pick the semantically obvious (but circular) one right back. **Measured
+  against the real GitHub catalog, not assumed**: of the 230 fields sent to the LLM, 87
+  (37.8%) had at least one circular producer among their top-5 loose candidates, and for 32
+  (13.9%) the single top-ranked candidate was circular — e.g. the top candidate for
+  `GITHUB_DELETE_A_PACKAGE_VERSION_FOR_THE_AUTHENTICATED_USER`'s `package_type` input was
+  `GITHUB_DELETE_PACKAGE`'s own `package_type` output, but `GITHUB_DELETE_PACKAGE` itself
+  requires `package_type` as input — the exact pattern `isCircularProducer` exists to catch.
+  Fixed by threading the already-computed `requiredNamesByTool` through both functions,
+  filtering with the same check the heuristic loop uses. No effect on this repo's checked-in
+  `graph.html` (no `OPENAI_API_KEY` is configured here, so the LLM path is a documented
+  no-op), but closes the gap for anyone who runs generation with credentials set.
 - (Checked, deliberately not acted on: `npm outdated` shows both `openai` and `typescript`
   have a major version available beyond what the `^` ranges in package.json allow — current
   major versions are patched and current within themselves. Bumping either is a real,
