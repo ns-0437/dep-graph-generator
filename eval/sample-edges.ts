@@ -6,11 +6,16 @@
  * the producer justified it, and at what heuristic score) purely for human review, using the
  * same lib functions generate.ts itself uses.
  *
- * Run: node --import tsx eval/sample-edges.ts [output-path] [--force]
+ * Run: node --import tsx eval/sample-edges.ts [output-path] [graph-input-path] [--force]
  * Output: eval/sample.json by default (each entry has verdict: null until hand-labeled), or
  * the given path -- an optional override that exists mainly so a smoke test can exercise
  * this script end-to-end without touching the real, hand-labeled file (see
- * sample-edges.test.ts).
+ * sample-edges.test.ts). The graph input likewise defaults to dependency_graph.json but can
+ * be overridden -- needed because that file is also written (temporarily, backed up and
+ * restored) by generate.test.ts's CLI subprocess test, and Node's test runner runs different
+ * test files concurrently by default: without an independent input path, a smoke test
+ * reading/generating the real dependency_graph.json can race that other file's read-before/
+ * write/restore-after around the exact same path.
  */
 import { readFileSync, writeFileSync } from "fs";
 import { loadCatalog, slugOf } from "../src/lib/catalog.js";
@@ -22,7 +27,9 @@ import type { InputField } from "../src/types.js";
 import { mulberry32, shuffle } from "./lib/sampling.js";
 import { assertSafeToOverwrite } from "./lib/safe-write.js";
 
-const OUT_PATH = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "eval/sample.json";
+const positional = process.argv.slice(2).filter((a) => !a.startsWith("--"));
+const OUT_PATH = positional[0] ?? "eval/sample.json";
+const GRAPH_PATH = positional[1] ?? "dependency_graph.json";
 assertSafeToOverwrite(OUT_PATH);
 
 // Fixed, documented seed -- the sample is reproducible from this, not re-randomized on
@@ -43,7 +50,7 @@ const indexedOutputsByTool = new Map<string, IndexedField[]>();
 for (const [slug, fields] of outputsByTool) indexedOutputsByTool.set(slug, indexFields(fields));
 const leafFrequency = buildLeafFrequency(indexedOutputsByTool);
 
-const graph = JSON.parse(readFileSync("dependency_graph.json", "utf-8"));
+const graph = JSON.parse(readFileSync(GRAPH_PATH, "utf-8"));
 
 /**
  * Re-derive which specific field on the producer justified this edge, and at what score.
@@ -121,7 +128,7 @@ function buildEntry(e: (typeof withEvidence)[number]) {
 const sample = {
   seed: SEED,
   perTier: PER_TIER,
-  generatedFrom: "dependency_graph.json",
+  generatedFrom: GRAPH_PATH,
   methodology:
     "Stratified random sample by heuristic match score (5 = leaf+type-name match, e.g. issue_number/Issue.number; 4 = exact leaf-name match, non-generic). Each entry needs 'verdict' filled in by hand: 'correct' (the producer really does supply this value), 'incorrect' (coincidental/wrong match), or 'ambiguous' (genuinely unclear without deeper GitHub API knowledge). See eval/README.md.",
   entries: [...sampleTier5.map(buildEntry), ...sampleTier4.map(buildEntry)],
