@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { escapeForInlineScript, renderVisualizationHtml } from "./visualization.js";
 
 test("escapeForInlineScript neutralizes every '<' so no closing tag can form", () => {
@@ -64,6 +65,37 @@ test("renderVisualizationHtml gives the fixed legend overlay pointer-events:none
   const legendRule = html.match(/#legend\s*\{[^}]*\}/)?.[0];
   assert.ok(legendRule, "the #legend CSS rule must exist");
   assert.match(legendRule!, /pointer-events\s*:\s*none/);
+});
+
+test("renderVisualizationHtml sets a Content-Security-Policy restricting script-src to its own hash", () => {
+  // Defense-in-depth against the tooltip XSS fixed above: even if a future change
+  // reintroduced an unescaped innerHTML sink, an attacker's injected inline handler still
+  // needs its own execution authorization the browser won't grant. Verified live in a real
+  // browser (not just this static check): after this CSP was added, directly injecting
+  // '<img src=x onerror="...">' into the tooltip's innerHTML (bypassing the app's own
+  // escapeHtml entirely, simulating a hypothetical future regression) did NOT execute --
+  // the browser's console logged "Executing inline event handler violates the following
+  // Content Security Policy directive... The action has been blocked." Confirmed the page's
+  // own legitimate script isn't collateral damage either: hover/tooltip, pan, click-to-
+  // highlight, wheel-zoom, search filtering, and the "show isolated" checkbox (which
+  // triggers a re-layout) all still worked with zero CSP violations logged.
+  const graph = { nodes: [{ id: "A" }, { id: "B" }], edges: [{ from: "A", to: "B", label: "x" }] };
+  const html = renderVisualizationHtml(graph);
+  const cspMatch = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]*)"/);
+  assert.ok(cspMatch, "a CSP meta tag must be present");
+  const csp = cspMatch![1]!;
+  assert.match(csp, /script-src 'sha256-[A-Za-z0-9+/]+=*'/);
+  assert.doesNotMatch(csp, /script-src[^;]*'unsafe-inline'/, "script-src must not also allow unsafe-inline, which would defeat the hash restriction");
+  assert.match(csp, /object-src 'none'/);
+  assert.match(csp, /base-uri 'none'/);
+
+  // The hash must match the ACTUAL script content this render produced -- not just be
+  // present in some valid-looking form -- since a stale/mismatched hash would silently
+  // block the page's own script the moment the embedded graph data changed.
+  const scriptMatch = html.match(/<script>([\s\S]*)<\/script>/);
+  assert.ok(scriptMatch, "the script tag must exist");
+  const expectedHash = createHash("sha256").update(scriptMatch![1]!, "utf-8").digest("base64");
+  assert.equal(csp.match(/script-src 'sha256-([^']+)'/)?.[1], expectedHash);
 });
 
 test("renderVisualizationHtml scales the canvas backing buffer by devicePixelRatio", () => {

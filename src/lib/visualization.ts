@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import type { Graph } from "../types.js";
 
 /**
@@ -14,45 +15,12 @@ export function escapeForInlineScript(json: string): string {
 }
 
 /**
- * Self-contained visualization: the graph data is embedded inline (not fetched), and layout
- * is a hand-rolled force simulation with no external library, so the file opens correctly
- * straight from disk (file://) with no server and no network access required.
+ * The page's entire client-side behavior, as a plain string -- kept separate from the HTML
+ * shell specifically so renderVisualizationHtml can hash exactly this text for the
+ * Content-Security-Policy script-src below, independent of the surrounding markup.
  */
-export function renderVisualizationHtml(graph: Graph): string {
-  return `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8" />
-<title>Dependency Graph</title>
-<style>
-  html, body { margin:0; height:100%; background:#0b0d12; color:#e6e6e6; font-family:-apple-system,Segoe UI,sans-serif; overflow:hidden; }
-  #toolbar { position:fixed; top:0; left:0; right:0; padding:10px 14px; background:#12151c; border-bottom:1px solid #262b36; display:flex; gap:16px; align-items:center; font-size:13px; z-index:10; flex-wrap:wrap; }
-  #toolbar b { color:#8ab4ff; }
-  #toolbar label { display:flex; gap:6px; align-items:center; cursor:pointer; color:#c3c9d4; }
-  #wrap { position:absolute; top:46px; left:0; right:0; bottom:0; }
-  canvas { display:block; cursor:grab; }
-  #tooltip { position:fixed; pointer-events:none; background:#1b2028; border:1px solid #333c4a; padding:8px 10px; border-radius:6px; font-size:12px; display:none; max-width:380px; z-index:20; line-height:1.5; }
-  #tooltip .slug { color:#8ab4ff; font-weight:600; }
-  #search { background:#1b2028; border:1px solid #333c4a; color:#e6e6e6; padding:5px 9px; border-radius:6px; font-size:13px; width:260px; }
-  #legend { position:fixed; bottom:10px; left:10px; font-size:11px; color:#8a93a6; background:#12151cd0; padding:8px 10px; border-radius:6px; max-width:220px; pointer-events:none; }
-  #toolbar a { color:#8ab4ff; text-decoration:none; margin-left:auto; }
-  #toolbar a:hover { text-decoration:underline; }
-  #loading { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#8a93a6; font-size:14px; background:#0b0d12; z-index:5; }
-</style>
-</head>
-<body>
-<div id="toolbar">
-  <b>Dep Graph</b>
-  <span id="counts"></span>
-  <label><input type="checkbox" id="show-isolated" /> show tools with no edges</label>
-  <input id="search" placeholder="filter by slug substring..." />
-  <span id="match-count" style="color:#8a93a6"></span>
-  <a href="https://github.com/ns-0437/dep-graph-generator" target="_blank" rel="noopener">View source on GitHub</a>
-</div>
-<div id="wrap"><canvas id="c"></canvas><div id="loading">Laying out the graph…</div></div>
-<div id="tooltip"></div>
-<div id="legend">Drag background to pan · wheel to zoom · drag a node to reposition · click a node to inspect its edges.</div>
-<script>
+function buildScriptContent(graph: Graph): string {
+  return `
 const GRAPH = ${escapeForInlineScript(JSON.stringify(graph))};
 (function () {
   "use strict";
@@ -72,7 +40,7 @@ const GRAPH = ${escapeForInlineScript(JSON.stringify(graph))};
   // touching tooltip.innerHTML below -- confirmed this was a real, working DOM XSS before
   // the fix (a hover on such a node executed arbitrary script), not just a theoretical one.
   // (No backticks in this comment block: it lives inside the outer template literal that
-  // builds this whole HTML document, so a literal backtick here would terminate it early.)
+  // builds this whole script's content, so a literal backtick here would terminate it early.)
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
@@ -336,7 +304,66 @@ const GRAPH = ${escapeForInlineScript(JSON.stringify(graph))};
     if (loadingEl) loadingEl.style.display = "none";
   }, 0);
 })();
-</script>
+`;
+}
+
+/**
+ * Self-contained visualization: the graph data is embedded inline (not fetched), and layout
+ * is a hand-rolled force simulation with no external library, so the file opens correctly
+ * straight from disk (file://) with no server and no network access required.
+ */
+export function renderVisualizationHtml(graph: Graph): string {
+  const scriptContent = buildScriptContent(graph);
+  // A CSP restricting script-src to exactly this script's own hash (no 'unsafe-inline') is
+  // real defense-in-depth against the tooltip XSS class of bug found and fixed above: even
+  // if a future change reintroduced an unescaped innerHTML sink, an attacker's injected
+  // `<img onerror=...>` would still need its own execution authorization the browser won't
+  // grant -- only script content matching this exact hash is allowed to run at all. The hash
+  // has to be recomputed per render because the script's content differs per graph (it
+  // embeds GRAPH inline) -- a fixed/hardcoded hash would go stale the moment the data
+  // changed and silently block the page's own script.
+  const scriptHash = createHash("sha256").update(scriptContent, "utf-8").digest("base64");
+  const csp =
+    "default-src 'none'; " +
+    `script-src 'sha256-${scriptHash}'; ` +
+    "style-src 'unsafe-inline'; " +
+    "object-src 'none'; " +
+    "base-uri 'none';";
+  return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="${csp}" />
+<title>Dependency Graph</title>
+<style>
+  html, body { margin:0; height:100%; background:#0b0d12; color:#e6e6e6; font-family:-apple-system,Segoe UI,sans-serif; overflow:hidden; }
+  #toolbar { position:fixed; top:0; left:0; right:0; padding:10px 14px; background:#12151c; border-bottom:1px solid #262b36; display:flex; gap:16px; align-items:center; font-size:13px; z-index:10; flex-wrap:wrap; }
+  #toolbar b { color:#8ab4ff; }
+  #toolbar label { display:flex; gap:6px; align-items:center; cursor:pointer; color:#c3c9d4; }
+  #wrap { position:absolute; top:46px; left:0; right:0; bottom:0; }
+  canvas { display:block; cursor:grab; }
+  #tooltip { position:fixed; pointer-events:none; background:#1b2028; border:1px solid #333c4a; padding:8px 10px; border-radius:6px; font-size:12px; display:none; max-width:380px; z-index:20; line-height:1.5; }
+  #tooltip .slug { color:#8ab4ff; font-weight:600; }
+  #search { background:#1b2028; border:1px solid #333c4a; color:#e6e6e6; padding:5px 9px; border-radius:6px; font-size:13px; width:260px; }
+  #legend { position:fixed; bottom:10px; left:10px; font-size:11px; color:#8a93a6; background:#12151cd0; padding:8px 10px; border-radius:6px; max-width:220px; pointer-events:none; }
+  #toolbar a { color:#8ab4ff; text-decoration:none; margin-left:auto; }
+  #toolbar a:hover { text-decoration:underline; }
+  #loading { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#8a93a6; font-size:14px; background:#0b0d12; z-index:5; }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <b>Dep Graph</b>
+  <span id="counts"></span>
+  <label><input type="checkbox" id="show-isolated" /> show tools with no edges</label>
+  <input id="search" placeholder="filter by slug substring..." />
+  <span id="match-count" style="color:#8a93a6"></span>
+  <a href="https://github.com/ns-0437/dep-graph-generator" target="_blank" rel="noopener">View source on GitHub</a>
+</div>
+<div id="wrap"><canvas id="c"></canvas><div id="loading">Laying out the graph…</div></div>
+<div id="tooltip"></div>
+<div id="legend">Drag background to pan · wheel to zoom · drag a node to reposition · click a node to inspect its edges.</div>
+<script>${scriptContent}</script>
 </body>
 </html>
 `;
