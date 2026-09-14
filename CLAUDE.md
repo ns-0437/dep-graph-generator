@@ -356,6 +356,23 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   not a JS object literal — a literal `{ __proto__: ... }` in source is special-cased by
   the language to set the actual prototype, which would test something different from what
   `loadCatalog()` actually does.)
+- Defense-in-depth added on top of the tooltip XSS fix above, not a separately-discovered
+  bug: `graph.html` shipped with no Content-Security-Policy at all, so the `escapeHtml()`
+  fix was the *only* thing standing between a future regression and arbitrary script
+  execution. Added a `<meta http-equiv="Content-Security-Policy">` tag restricting
+  `script-src` to a SHA-256 hash of the exact embedded script (no `'unsafe-inline'`), plus
+  `object-src 'none'` and `base-uri 'none'`. The script's content differs per graph (it
+  inlines that graph's JSON data), so the hash is computed at render time via
+  `crypto.createHash` over the exact string being shipped — a hardcoded hash would go stale
+  the moment the catalog changed and silently block the page's own script. **Verified this
+  actually blocks something, not just that the header is present**: with the CSP live,
+  injected `'<img src=x onerror="...">'` directly into the tooltip's `innerHTML` via the
+  browser console (bypassing `escapeHtml()` entirely, simulating a hypothetical future
+  regression) — the browser blocked it and logged an explicit CSP violation, where before
+  adding the CSP the identical injection executed. Also re-ran the full interaction surface
+  (hover/tooltip, pan, click-to-highlight, wheel-zoom, search filtering, the "show isolated"
+  checkbox's async re-layout) under the CSP and confirmed zero violations, so the policy
+  isn't accidentally breaking the page's own legitimate inline script.
 - (Checked, deliberately not acted on: `npm outdated` shows both `openai` and `typescript`
   have a major version available beyond what the `^` ranges in package.json allow — current
   major versions are patched and current within themselves. Bumping either is a real,
