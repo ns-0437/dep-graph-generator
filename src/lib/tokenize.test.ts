@@ -46,6 +46,27 @@ test("singularize treats 'ids' as the irregular plural of 'id'", () => {
   assert.deepEqual(tokenize("selected_repository_ids"), ["selected", "repository", "id"]);
 });
 
+test("singularize strips only the trailing 's' from words whose singular ends in 'se'", () => {
+  // Regression guard: the old code treated any "...ses" ending as a double-s plural and
+  // dropped both trailing letters, which also mangled words that legitimately end in a
+  // single "se" -- "releases" -> "releas" instead of "release". Verified against the real
+  // GitHub catalog: GITHUB_LIST_RELEASES tokenized to "releas", which no longer matched the
+  // "release" keyword in SERVICE_KEYWORDS, so guessService mis-labeled its service as "list"
+  // instead of "releases".
+  assert.equal(singularize("releases"), "release");
+  assert.equal(singularize("licenses"), "license");
+  assert.equal(singularize("databases"), "database");
+  assert.deepEqual(tokenize("GITHUB_LIST_RELEASES"), ["github", "list", "release"]);
+});
+
+test("singularize still strips both trailing letters for a genuine double-s plural", () => {
+  // "classes"/"addresses" are the pattern the "ses"->"sses" restriction must still catch --
+  // their singular already ends in "ss", so only the "es" (not the trailing "s" alone)
+  // should be dropped.
+  assert.equal(singularize("classes"), "class");
+  assert.equal(singularize("addresses"), "address");
+});
+
 test("singularize's 'ids' exception doesn't over-fire on other short words ending in s", () => {
   // Verified against the real catalog: these are the only other 3-letter s-ending tokens
   // that appear anywhere in it, and none of them are plurals.

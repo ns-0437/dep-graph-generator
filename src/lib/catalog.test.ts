@@ -34,6 +34,15 @@ test("guessService falls back to the first token after the toolkit prefix when n
   assert.equal(guessService("GITHUB_XYZZY_FOO"), "xyzzy");
 });
 
+test("guessService matches a keyword whose plural form ends in a single 'se'", () => {
+  // Regression guard for a real bug in singularize (see tokenize.test.ts): a "...ses"
+  // ending word that legitimately singularizes to something ending in "se" -- like
+  // "releases" -> "release" -- used to tokenize to "releas" instead, which no longer
+  // matched the "release" SERVICE_KEYWORDS entry. Confirmed against the real shipped
+  // catalog: GITHUB_LIST_RELEASES was mis-labeled with service "list" before this fix.
+  assert.equal(guessService("GITHUB_LIST_RELEASES"), "releases");
+});
+
 test("loadCatalog accepts a bare array", () => {
   const path = "test-fixtures/tmp_array_catalog.json";
   writeFileSync(path, JSON.stringify([{ slug: "A" }]));
