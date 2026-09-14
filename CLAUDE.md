@@ -391,6 +391,24 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   filtering with the same check the heuristic loop uses. No effect on this repo's checked-in
   `graph.html` (no `OPENAI_API_KEY` is configured here, so the LLM path is a documented
   no-op), but closes the gap for anyone who runs generation with credentials set.
+- `singularize()` treated any word ending in `"ses"` as a double-s plural (`"classes"` ->
+  `"class"`) and dropped both trailing letters — correct for words whose singular already
+  ends in `"ss"`, but it also caught words whose singular legitimately ends in a single
+  `"se"` — `"releases"`, `"licenses"`, `"databases"` — dropping the `"e"` too (`"releases"`
+  -> `"releas"` instead of `"release"`). **Confirmed live in the shipped output, not just
+  constructed examples**: `GITHUB_LIST_RELEASES` tokenized to `"releas"`, which no longer
+  matched the `"release"` keyword in `SERVICE_KEYWORDS`, so `guessService` mis-labeled its
+  service as `"list"` (the first leftover token) instead of `"releases"` — this was live in
+  `dependency_graph.json`/`graph.html` before the fix. Fixed by restricting the double-strip
+  rule to a genuine double-s pattern (`"sses"`), leaving single-s-plus-se words to fall
+  through to the generic "strip trailing s" branch. Documented trade-off: words whose
+  singular already ends in a single `"s"` and pluralize by adding `"es"` (e.g. `"status"` ->
+  `"statuses"`) surface identically to the `"se"+"s"` pattern and can't be told apart from
+  the string alone — `"statuses"` now singularizes to `"statuse"` instead of the
+  previously-correct `"status"`. Checked directly that this has zero visible effect on
+  anything the current catalog generates: `"status"` isn't a `SERVICE_KEYWORDS` entry, and
+  re-running the full heuristic matching pipeline with the fix applied produced the exact
+  same 1889 edges as before.
 - (Checked, deliberately not acted on: `npm outdated` shows both `openai` and `typescript`
   have a major version available beyond what the `^` ranges in package.json allow — current
   major versions are patched and current within themselves. Bumping either is a real,
