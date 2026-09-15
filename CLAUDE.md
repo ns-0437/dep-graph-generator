@@ -447,6 +447,32 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   meant to protect hand-labeled eval data from an accidental overwrite. Confirmed directly
   before fixing. Fixed by validating `Array.isArray(existing.entries)` up front and treating
   a non-array the same as the already-handled corrupt-JSON case.
+- `llmDisambiguate`'s JSON-extraction regex (`/\[[\s\S]*\]/`) was greedy — it matched from the
+  FIRST `"["` to the LAST `"]"` anywhere in the model's response. A model appending any
+  trailing remark containing a `"]"` (e.g. referencing `candidate_producers[0]`, a completely
+  normal thing to do even when told to respond with ONLY the array) got that prose swallowed
+  into the "JSON", `JSON.parse` threw, and the whole batch of up to 25 items was silently
+  dropped even though the model's actual answer was fully correct. **Confirmed directly**: a
+  response of `` [{"idx":0,"ci":0}]\n\nNote: candidate_producers[0] was the best match here. ``
+  failed to parse and dropped a correct edge. Replaced with a bracket-balance scan
+  (`extractJsonArray`) that finds the first `"["` and walks forward tracking nesting depth and
+  string state until the matching `"]"`, so trailing prose (or a bracket/backslash inside a
+  quoted string value) can't be mistaken for part of the array.
+- `isEffectivelyContainer` in `schema.ts` was a separate, unmemoized recursion from `walk()`'s
+  own cycle-guarded traversal — every property value got a fresh call with no memory of work
+  already done for a sibling property (or a different `anyOf` branch) resolving to the same
+  type. For polymorphic types that branch into several other types that branch again (a
+  realistic API-response shape, not a pathological one), the same resolved type got
+  re-explored from scratch at every branch and depth level — genuine exponential time in the
+  branching factor. **Confirmed directly**: a synthetic schema of mutually-referencing types
+  (branching factor 4, 6 chain types) took ~9.8s to flatten a single tool's output schema;
+  branching factor 6 on the same shape didn't finish in 60 seconds. `flattenOutputs` is
+  `generate()`'s hot path, called once per tool. Fixed by caching each resolved node's
+  containment result in a `Map` keyed by the resolved node object itself, so every `$ref`
+  pointing at the same `$defs` entry shares one cache entry. Both previously-slow cases now
+  complete in under a millisecond; re-ran the full generator against the real GitHub catalog
+  afterward and confirmed identical output (1889 edges, unchanged) — this is a pure
+  performance fix.
 - (Checked, deliberately not acted on: `npm outdated` shows both `openai` and `typescript`
   have a major version available beyond what the `^` ranges in package.json allow — current
   major versions are patched and current within themselves. Bumping either is a real,
