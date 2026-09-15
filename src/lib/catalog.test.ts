@@ -25,6 +25,36 @@ test("requiredInputsOf returns [] when there's no inputParameters.required", () 
   assert.deepEqual(requiredInputsOf({}), []);
 });
 
+test("requiredInputsOf falls back to tool.function.parameters for OpenAI function-calling shaped tools", () => {
+  // Regression guard: slugOf already falls back to tool.function?.name for this shape (see
+  // its own test above), but requiredInputsOf didn't -- a catalog fully in OpenAI
+  // function-calling shape got correctly-identified nodes and silently zero required
+  // fields, hence zero edges, with no error. Confirmed directly against a constructed
+  // catalog in this shape before the fix: generate() logged "required fields: 0 total".
+  const fields = requiredInputsOf({
+    type: "function",
+    function: {
+      name: "CREATE_ISSUE",
+      parameters: { type: "object", required: ["repo", "title"] },
+    },
+  });
+  assert.deepEqual(
+    fields.map((f) => f.name),
+    ["repo", "title"],
+  );
+});
+
+test("requiredInputsOf prefers inputParameters over function.parameters when both are present", () => {
+  const fields = requiredInputsOf({
+    inputParameters: { required: ["from_input_parameters"] },
+    function: { parameters: { required: ["from_function_parameters"] } },
+  });
+  assert.deepEqual(
+    fields.map((f) => f.name),
+    ["from_input_parameters"],
+  );
+});
+
 test("guessService matches a known keyword present in the slug", () => {
   assert.equal(guessService("GITHUB_CREATE_AN_ISSUE"), "issues");
   assert.equal(guessService("GITHUB_MERGE_A_PULL_REQUEST"), "pull_requests");

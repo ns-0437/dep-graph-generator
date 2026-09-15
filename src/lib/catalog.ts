@@ -32,7 +32,17 @@ export function slugOf(tool: Tool): string | undefined {
 }
 
 export function requiredInputsOf(tool: Tool): InputField[] {
-  const schema = tool.inputParameters;
+  // slugOf already falls back to tool.function?.name for the OpenAI function-calling tool
+  // shape (`{ type: "function", function: { name, parameters } }` -- the shape Composio's
+  // own SDK can export a catalog in), but this function only ever read tool.inputParameters
+  // -- so a catalog fully in that shape got correctly-identified, correctly-labeled nodes
+  // and silently ZERO required fields, hence zero edges, with no error. Confirmed directly:
+  // generate() on such a catalog logged "required fields: 0 total" and produced an empty
+  // edge list indistinguishable from a legitimately edge-free catalog. inputParameters and
+  // function.parameters are both plain JSON Schema objects with the same
+  // properties/required shape, so falling back to the latter is a safe, direct extension,
+  // not a guess at a different structure.
+  const schema = tool.inputParameters ?? tool.function?.parameters;
   const required: string[] = schema?.required ?? [];
   return required.map((name) => ({ name, tokens: tokenize(name) }));
 }
