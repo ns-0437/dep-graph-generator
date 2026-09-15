@@ -74,6 +74,23 @@ export const SERVICE_KEYWORDS = [
   "membership",
 ];
 
+const VOWELS = new Set(["a", "e", "i", "o", "u"]);
+
+/**
+ * Pluralizes a single already-singular keyword token for display. A trailing consonant+"y"
+ * needs "ies", not a bare "s" -- "repository" + "s" reads as "repositorys". Verified against
+ * the real GitHub catalog: this was silently mislabeling 161 of 893 nodes (every
+ * *_REPOSITORY* tool) with service "repositorys" before this fix, since "repository" is the
+ * only SERVICE_KEYWORDS entry ending in a consonant+"y".
+ */
+export function pluralize(k: string): string {
+  if (k.endsWith("s")) return k;
+  if (k.length > 1 && k.endsWith("y") && !VOWELS.has(k[k.length - 2]!)) {
+    return k.slice(0, -1) + "ies";
+  }
+  return k + "s";
+}
+
 /** Best-effort category derived from the slug itself, e.g. GITHUB_CREATE_AN_ISSUE -> "issues". */
 export function guessService(slug: string): string | undefined {
   const rest = tokenize(slug).slice(1);
@@ -82,9 +99,7 @@ export function guessService(slug: string): string | undefined {
     if (kwTokens.every((k) => rest.includes(k))) {
       // Pluralize only the last word -- pluralizing every word independently turns
       // "pull_request" into "pulls_requests" instead of "pull_requests".
-      return kwTokens
-        .map((k, i) => (i === kwTokens.length - 1 && !k.endsWith("s") ? k + "s" : k))
-        .join("_");
+      return kwTokens.map((k, i) => (i === kwTokens.length - 1 ? pluralize(k) : k)).join("_");
     }
   }
   return rest[0];

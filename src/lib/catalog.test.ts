@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { writeFileSync, unlinkSync } from "fs";
-import { loadCatalog, slugOf, requiredInputsOf, guessService } from "./catalog.js";
+import { loadCatalog, slugOf, requiredInputsOf, guessService, pluralize } from "./catalog.js";
 
 test("slugOf prefers slug, falls back to name, then function.name", () => {
   assert.equal(slugOf({ slug: "A", name: "B" }), "A");
@@ -32,6 +32,37 @@ test("guessService matches a known keyword present in the slug", () => {
 
 test("guessService falls back to the first token after the toolkit prefix when no keyword matches", () => {
   assert.equal(guessService("GITHUB_XYZZY_FOO"), "xyzzy");
+});
+
+test("pluralize leaves a word that already ends in 's' unchanged", () => {
+  // No current SERVICE_KEYWORDS entry ends in "s" (they're all singular nouns), so this
+  // guard can't be exercised through guessService with a real keyword -- tested directly.
+  assert.equal(pluralize("status"), "status");
+});
+
+test("pluralize adds just 's' to a word ending in a vowel+'y'", () => {
+  // The consonant+'y' -> 'ies' rule must not over-fire on a vowel+'y' ending, e.g. "day" ->
+  // "days", not "daies".
+  assert.equal(pluralize("day"), "days");
+});
+
+test("pluralize turns a trailing consonant+'y' into 'ies'", () => {
+  assert.equal(pluralize("repository"), "repositories");
+});
+
+test("pluralize adds a plain 's' to an ordinary word", () => {
+  assert.equal(pluralize("issue"), "issues");
+});
+
+test("guessService pluralizes a keyword ending in consonant+'y' as '...ies', not '...ys'", () => {
+  // Regression guard: the old pluralization rule was a bare "add an s unless it already
+  // ends in s", which is wrong for any keyword ending in a consonant+"y" -- "repository" +
+  // "s" reads as "repositorys". "repository" is the only SERVICE_KEYWORDS entry with this
+  // shape, but it's a very common one: confirmed against the real shipped
+  // dependency_graph.json that 161 of 893 nodes (every *_REPOSITORY* tool) carried
+  // service: "repositorys" before this fix.
+  assert.equal(guessService("GITHUB_LIST_LABELS_FOR_A_REPOSITORY"), "repositories");
+  assert.equal(guessService("GITHUB_ADD_A_REPOSITORY_COLLABORATOR"), "repositories");
 });
 
 test("guessService matches a keyword whose plural form ends in a single 'se'", () => {
