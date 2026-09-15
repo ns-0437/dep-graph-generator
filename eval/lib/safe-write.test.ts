@@ -71,3 +71,14 @@ test("assertSafeToOverwrite proceeds when the existing file is corrupt/unreadabl
   const { status } = runProbe([], "{ not valid json");
   assert.equal(status, 0);
 });
+
+test("assertSafeToOverwrite proceeds instead of crashing when entries parses but isn't an array", () => {
+  // Regression guard: valid JSON with entries hand-edited into a non-array (e.g. an object,
+  // or an older/different schema) used to throw an unhandled TypeError from calling .filter
+  // on it -- crashing the exact safety net this function exists to provide, instead of
+  // either refusing or proceeding cleanly. Must be treated the same as the corrupt/unreadable
+  // case above: nothing labeled to protect, so it's safe to proceed.
+  const { status, stderr } = runProbe([], JSON.stringify({ entries: { note: "not an array" } }));
+  assert.equal(status, 0);
+  assert.equal(stderr, "");
+});

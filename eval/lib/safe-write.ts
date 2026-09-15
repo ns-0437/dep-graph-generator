@@ -20,7 +20,15 @@ export function assertSafeToOverwrite(path: string): void {
   } catch {
     return; // unreadable/corrupt -- nothing labeled to protect, let the overwrite proceed
   }
-  const labeled = (existing.entries ?? []).filter((e) => e.verdict !== null && e.verdict !== undefined).length;
+  // A parse-succeeded-but-wrong-shape file (e.g. entries hand-edited into an object, or an
+  // older/different schema) must be treated the same as unreadable/corrupt above -- nothing
+  // labeled to protect, let the overwrite proceed -- not crash with an unhandled TypeError
+  // from calling .filter on a non-array. Confirmed directly: writing `{ entries: { note:
+  // "x" } }` and calling this function threw "(existing.entries ?? []).filter is not a
+  // function" instead of either safe outcome, defeating the exact safety net this function
+  // exists to provide.
+  if (!Array.isArray(existing.entries)) return;
+  const labeled = existing.entries.filter((e) => e.verdict !== null && e.verdict !== undefined).length;
   if (labeled > 0) {
     console.error(
       `REFUSING to overwrite ${path}: it already has ${labeled} hand-labeled entr${labeled === 1 ? "y" : "ies"}.\n` +
