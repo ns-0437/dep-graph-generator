@@ -36,13 +36,37 @@ export function flattenOutputs(tool: Tool): OutField[] {
    * anyOf/oneOf field as a container would also wrongly swallow simple nullable-primitive
    * patterns like `{ anyOf: [{ type: "string" }, { type: "null" }] }`, which should still
    * be recorded as a leaf under their own property name.
+   *
+   * walk() guards against $ref cycles with its own `visited` set, but this is a separate,
+   * unmemoized recursion -- every property value in every object gets a fresh call starting
+   * from depth 0 with no memory of work done for a different property (or a sibling anyOf
+   * branch) that happened to resolve to the same type. For schemas where types branch into
+   * several other types that branch again (real polymorphic API responses, not even a
+   * pathological construction), the same resolved type gets re-explored from scratch at
+   * every branch and every depth level -- genuine exponential time in the branching factor.
+   * Confirmed directly: a synthetic schema of mutually-referencing types with a branching
+   * factor of 4 took ~9.8s to flatten a single tool's output schema; branching factor 2 on
+   * the same shape took 7ms. containerMemo caches each resolved node's answer (keyed by the
+   * resolved node object itself, so every $ref pointing at the same $defs entry shares one
+   * cache entry) so the same type's containment status is computed once, not once per
+   * occurrence.
    */
+  const containerMemo = new Map<any, boolean>();
   function isEffectivelyContainer(node: any, depth = 0): boolean {
     if (!node || depth > MAX_DEPTH) return false;
     const { node: resolved } = resolve(node);
-    if (resolved.properties) return true;
-    if (resolved.type === "array" && resolved.items) return isEffectivelyContainer(resolved.items, depth + 1);
-    return compositionBranches(resolved).some((branch) => isEffectivelyContainer(branch, depth + 1));
+    const cached = containerMemo.get(resolved);
+    if (cached !== undefined) return cached;
+    let result: boolean;
+    if (resolved.properties) {
+      result = true;
+    } else if (resolved.type === "array" && resolved.items) {
+      result = isEffectivelyContainer(resolved.items, depth + 1);
+    } else {
+      result = compositionBranches(resolved).some((branch) => isEffectivelyContainer(branch, depth + 1));
+    }
+    containerMemo.set(resolved, result);
+    return result;
   }
 
   function walk(node: any, path: string, parentType: string, visited: Set<string>, depth: number) {

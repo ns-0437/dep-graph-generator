@@ -240,3 +240,31 @@ test("flattenOutputs handles oneOf the same way as anyOf", () => {
     ["a", "b"],
   );
 });
+
+test("flattenOutputs stays fast on a branching web of mutually-referencing types (regression test)", () => {
+  // isEffectivelyContainer used to be a separate, unmemoized recursion from walk()'s own
+  // cycle-guarded traversal -- every property value got a fresh call with no memory of work
+  // already done for a sibling property (or a different anyOf branch) that resolves to the
+  // same type. For polymorphic types that branch into several other types that branch again
+  // (a realistic API-response shape, not a pathological one), the same resolved type gets
+  // re-explored from scratch at every branch and depth level -- genuine exponential time in
+  // the branching factor. Confirmed directly before this fix: this exact shape at branching
+  // factor 4 took ~9.8s to flatten a single tool's schema, and branching factor 6 didn't
+  // finish in 60s. If the memoization in isEffectivelyContainer ever regresses, this test
+  // will time out rather than silently pass slowly.
+  const branching = 6;
+  const chainTypes = 8;
+  const defs: Record<string, any> = { Wrapper: { properties: { field: { $ref: "#/$defs/Chain0" } } } };
+  for (let i = 0; i < chainTypes; i++) {
+    const branches = [];
+    for (let b = 0; b < branching; b++) branches.push({ $ref: `#/$defs/Chain${(i + 1 + b) % chainTypes}` });
+    defs[`Chain${i}`] = { anyOf: branches };
+  }
+  const start = Date.now();
+  const fields = flattenOutputs(tool({ properties: { data: { $ref: "#/$defs/Wrapper" } }, $defs: defs }));
+  const elapsedMs = Date.now() - start;
+  assert.ok(elapsedMs < 2000, `expected well under 2s, took ${elapsedMs}ms`);
+  // None of the Chain types ever reach a `properties` schema, so "field" isn't a container --
+  // it's recorded as a (useless but harmless) leaf, same as any other dead-end anyOf chain.
+  assert.deepEqual(fields, [{ name: "field", parentType: "Wrapper", path: "data.field" }]);
+});
