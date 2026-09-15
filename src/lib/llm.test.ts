@@ -169,6 +169,71 @@ test("llmDisambiguate treats ci: null as 'no match' rather than an edge", async 
   assert.deepEqual(result, []);
 });
 
+test("llmDisambiguate isn't tripped up by trailing prose containing a stray ']'", async () => {
+  // Regression guard: the old JSON-extraction regex (/\[[\s\S]*\]/) was greedy -- it matched
+  // from the FIRST "[" to the LAST "]" anywhere in the response. A model appending any
+  // trailing remark that happens to contain a "]" (e.g. referencing "candidate_producers[0]",
+  // a normal thing for a model to do even when told to respond with ONLY the array) got that
+  // prose swallowed into the "JSON", which then failed to parse -- silently dropping the
+  // WHOLE batch's correct answer. Confirmed directly before this fix.
+  const outputsByTool = indexedOutputsByTool([["PRODUCER", [outField("id", "Channel")]]]);
+  const fakeClient: ChatClient = {
+    chat: {
+      completions: {
+        create: async () => ({
+          choices: [
+            {
+              message: {
+                content: '[{"idx":0,"ci":0}]\n\nNote: candidate_producers[0] was the best match here.',
+              },
+            },
+          ],
+        }),
+      },
+    },
+  };
+  const result = await llmDisambiguate(
+    [{ consumer: "CONSUMER", field: input("channel_id") }],
+    outputsByTool,
+    fakeClient,
+  );
+  assert.deepEqual(result, [{ from: "PRODUCER", to: "CONSUMER", label: "channel_id" }]);
+});
+
+test("llmDisambiguate's JSON extraction isn't confused by a bracket or backslash inside a string value", async () => {
+  // A "]" or "\" occurring inside a quoted string must not be mistaken for a real array/
+  // object delimiter or an unterminated escape -- proves the bracket-balance scan tracks
+  // string state correctly rather than just counting bracket characters naively.
+  const outputsByTool = indexedOutputsByTool([["PRODUCER", [outField("id", "Channel")]]]);
+  const content = JSON.stringify([{ idx: 0, ci: 0, note: "esc \\ and a bracket ] here" }]);
+  const fakeClient: ChatClient = {
+    chat: { completions: { create: async () => ({ choices: [{ message: { content } }] }) } },
+  };
+  const result = await llmDisambiguate(
+    [{ consumer: "CONSUMER", field: input("channel_id") }],
+    outputsByTool,
+    fakeClient,
+  );
+  assert.deepEqual(result, [{ from: "PRODUCER", to: "CONSUMER", label: "channel_id" }]);
+});
+
+test("llmDisambiguate degrades gracefully when the response's JSON array is truncated (e.g. cut off by a token limit)", async () => {
+  const outputsByTool = indexedOutputsByTool([["PRODUCER", [outField("id", "Channel")]]]);
+  const fakeClient: ChatClient = {
+    chat: {
+      completions: {
+        create: async () => ({ choices: [{ message: { content: '[{"idx":0,"ci":0}' } }] }),
+      },
+    },
+  };
+  const result = await llmDisambiguate(
+    [{ consumer: "CONSUMER", field: input("channel_id") }],
+    outputsByTool,
+    fakeClient,
+  );
+  assert.deepEqual(result, []);
+});
+
 test("llmDisambiguate degrades gracefully on a malformed/unparseable response instead of throwing", async () => {
   const outputsByTool = indexedOutputsByTool([["PRODUCER", [outField("id", "Channel")]]]);
   const fakeClient: ChatClient = {

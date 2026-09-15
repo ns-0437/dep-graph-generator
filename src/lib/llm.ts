@@ -61,6 +61,42 @@ export function looseCandidates(
 }
 
 /**
+ * Extracts the first top-level JSON array from free-form model output via bracket-balance
+ * scanning, not a greedy regex. `/\[[\s\S]*\]/` matches from the FIRST "[" to the LAST "]"
+ * anywhere in the text -- if the model appends any trailing remark containing a "]" (e.g.
+ * referencing "candidate_producers[0]", a completely normal thing for a model to do even
+ * when told to respond with ONLY the array), the greedy match swallows that prose into the
+ * "JSON", JSON.parse throws, and the catch below silently drops the WHOLE batch of up to 25
+ * items -- even though the model's actual answer was fully correct. Confirmed directly: a
+ * response of `[{"idx":0,"ci":0}]\n\nNote: candidate_producers[0] was the best match here.`
+ * failed to parse and dropped a correct edge before this fix. Tracks string state so a "["
+ * or "]" inside a quoted string (e.g. an output_field value) doesn't miscount the depth.
+ */
+function extractJsonArray(text: string): string | undefined {
+  const start = text.indexOf("[");
+  if (start === -1) return undefined;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (c === "\\") escaped = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') inString = true;
+    else if (c === "[" || c === "{") depth++;
+    else if (c === "]" || c === "}") {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return undefined;
+}
+
+/**
  * Batched LLM pass over fields the heuristic couldn't resolve. Multiple-choice, not free
  * text, to keep it cheap and reliable: for each unresolved field we hand the model a short
  * list of loosely-matching candidates and ask it to pick one or none.
@@ -111,8 +147,8 @@ export async function llmDisambiguate(
         temperature: 0,
       });
       const text = resp.choices[0]?.message?.content ?? "[]";
-      const match = text.match(/\[[\s\S]*\]/);
-      const parsed: { idx: number; ci: number | null }[] = JSON.parse(match ? match[0] : text);
+      const extracted = extractJsonArray(text);
+      const parsed: { idx: number; ci: number | null }[] = JSON.parse(extracted ?? text);
       for (const { idx, ci } of parsed) {
         if (ci === null || ci === undefined) continue;
         const u = batch[idx];
