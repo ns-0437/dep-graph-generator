@@ -51,6 +51,19 @@ export async function generate(tools: Tool[], client?: ChatClient): Promise<Grap
   for (const t of tools) {
     const id = slugOf(t);
     if (!id) continue;
+    // toolBySlug (and every map keyed by slug built from it below) can only ever hold one
+    // definition per slug -- a plain Map.set on a repeated key silently keeps the last one.
+    // Without this check, a catalog with a duplicate slug got a graph with two same-id
+    // nodes (both simulated by the force layout, but only one resolvable by id for edges/
+    // tooltips) AND every field of every-earlier-seen definition for that slug silently
+    // discarded from matching, with no error -- confirmed directly: a duplicate
+    // "GITHUB_CREATE_AN_ISSUE" entry with real required inputs, followed by one requiring
+    // only "owner", produced a graph where the first definition's inputs/outputs simply
+    // vanished. Same "fail loudly on ambiguous input" philosophy as loadCatalog's shape
+    // check above.
+    if (toolBySlug.has(id)) {
+      throw new Error(`catalog has more than one tool with slug "${id}" -- slugs must be unique`);
+    }
     toolBySlug.set(id, t);
     const service = guessService(id);
     nodes.push(service !== undefined ? { id, service } : { id });

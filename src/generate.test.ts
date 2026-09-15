@@ -308,6 +308,21 @@ test("generate(): a catalog with __proto__/constructor keys can't pollute Object
   );
 });
 
+test("generate(): throws a clear error instead of silently merging two tools with the same slug", async () => {
+  // Regression guard: every map keyed by slug downstream (toolBySlug, outputsByTool,
+  // requiredByTool) can only hold one definition per slug -- a plain Map.set on a repeated
+  // key silently keeps the last one. Before this check, a duplicate slug produced a graph
+  // with two same-id nodes and silently discarded the first definition's inputs/outputs
+  // entirely, with no error. Confirmed directly: a duplicate GITHUB_CREATE_AN_ISSUE with
+  // real required inputs, followed by one requiring only "owner", produced a graph where
+  // the first definition's fields simply vanished from matching.
+  const catalog = [
+    { slug: "GITHUB_CREATE_AN_ISSUE", inputParameters: { required: ["repo", "title"] } },
+    { slug: "GITHUB_CREATE_AN_ISSUE", inputParameters: { required: ["owner"] } },
+  ];
+  await assert.rejects(() => generate(catalog as never), /more than one tool with slug "GITHUB_CREATE_AN_ISSUE"/);
+});
+
 test("generate(): silently skips a tool with no slug/name/function.name instead of producing a bad node", async () => {
   const catalog = [
     // No slug, no name, no function.name -- slugOf() returns undefined for this one.
