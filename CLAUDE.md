@@ -409,6 +409,44 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   anything the current catalog generates: `"status"` isn't a `SERVICE_KEYWORDS` entry, and
   re-running the full heuristic matching pipeline with the fix applied produced the exact
   same 1889 edges as before.
+- `guessService`'s pluralization rule was a bare "add an `s` unless it already ends in `s`",
+  which is wrong for any `SERVICE_KEYWORDS` entry ending in a consonant+`"y"` — `"repository"`
+  is the only one, but it's a very common one. **Confirmed against the real shipped
+  `dependency_graph.json`**: 161 of 893 nodes (every `*_REPOSITORY*` tool) carried
+  `service: "repositorys"` — 4x the blast radius of the earlier `pulls_requests` bug (41
+  nodes), which had a different root cause (pluralizing every token independently instead of
+  just the last one). Fixed with a small `pluralize()` helper applying the standard rule: a
+  trailing consonant+`"y"` becomes `"ies"`, a trailing vowel+`"y"` just gets an `"s"`, a word
+  already ending in `"s"` is left alone. Re-ran the generator afterward and confirmed the
+  edge count is unaffected (1889, unchanged) — this only touches node display labels.
+- `slugOf` falls back to `tool.function?.name` for the OpenAI function-calling tool shape
+  (`{ type: "function", function: { name, parameters } }` — the shape Composio's own SDK can
+  export a catalog in), but `requiredInputsOf` only ever read `tool.inputParameters`. A
+  catalog fully in that shape got correctly-identified, correctly-labeled nodes and silently
+  **zero** required fields, hence zero edges, with no error. **Confirmed directly**: built a
+  two-tool catalog in this shape and ran it through `generate()` — logged
+  `"required fields: 0 total"`. Fixed by falling back to `tool.function?.parameters` (both
+  are plain JSON Schema objects with the same `properties`/`required` shape, so this is a
+  direct extension, not a guess). `flattenOutputs` isn't touched: the OpenAI function-calling
+  spec has no analogous output-schema field to fall back to.
+- `toolBySlug` (and every map keyed by slug built from it) can only hold one definition per
+  slug — a plain `Map.set` on a repeated key silently keeps the last one — but the node list
+  was built by pushing once per raw tool entry with no uniqueness check. A catalog with a
+  duplicate slug produced a graph with two same-id nodes, while every field of the
+  earlier-seen definition for that slug was silently discarded from matching entirely, with
+  no error. **Confirmed directly**: two `GITHUB_CREATE_AN_ISSUE` entries (first requiring
+  real inputs, second only `"owner"`) produced a graph with a vanished first definition.
+  Fixed with the same "fail loudly on ambiguous input" philosophy `loadCatalog` already uses
+  for a malformed shape: `generate()` now throws naming the duplicated slug. The real GitHub
+  catalog has zero duplicate slugs (checked directly), so this doesn't change anything it
+  currently generates.
+- (Dev-tooling only, not the generator itself:) `eval/lib/safe-write.ts`'s
+  `assertSafeToOverwrite` only guarded `JSON.parse` against corrupt/unreadable JSON — a file
+  that parses fine but whose `entries` field isn't an array (e.g. hand-edited into an object)
+  threw an unhandled `TypeError` from calling `.filter` on it, crashing the exact safety net
+  meant to protect hand-labeled eval data from an accidental overwrite. Confirmed directly
+  before fixing. Fixed by validating `Array.isArray(existing.entries)` up front and treating
+  a non-array the same as the already-handled corrupt-JSON case.
 - (Checked, deliberately not acted on: `npm outdated` shows both `openai` and `typescript`
   have a major version available beyond what the `^` ranges in package.json allow — current
   major versions are patched and current within themselves. Bumping either is a real,
