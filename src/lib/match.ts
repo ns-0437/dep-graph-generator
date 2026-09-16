@@ -95,6 +95,15 @@ export function matchScore(
   genericThreshold = GENERIC_THRESHOLD,
 ): number {
   const leafTokens = indexed.tokens;
+  // `[].every(...)` is vacuously true -- tokenize() produces [] for any property name made
+  // only of separator characters (e.g. "___"), and without this guard that field's own name
+  // is skipped entirely, degrading the match to "does the leaf's TYPE name alone satisfy
+  // every input token," ignoring the field's own name. Confirmed directly: a field named
+  // "___" on a type IssueNumberInfo scored the maximum (5) against an "issue_number" input,
+  // while a normally-named "value" field on the identical type scored 0. Not present in the
+  // real catalog today (checked: 0 of 26161 real output leaf field names tokenize to []),
+  // but the project explicitly promises to generalize to any toolkit's catalog.
+  if (leafTokens.length === 0) return 0;
   if (!leafTokens.every((t) => input.tokens.includes(t))) return 0;
   const remaining = input.tokens.filter((t) => !leafTokens.includes(t));
   if (remaining.length === 0) return isGeneric(indexed.field.name, leafFrequency, genericThreshold) ? 1 : 4;

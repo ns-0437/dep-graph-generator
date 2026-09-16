@@ -50,6 +50,19 @@ test("matchScore: leaf name not contained in input name scores 0", () => {
   assert.equal(score, 0);
 });
 
+test("matchScore: a field name that tokenizes to nothing (e.g. all separator characters) scores 0", () => {
+  // Regression guard: leafTokens.every(...) is vacuously true when leafTokens is [] --
+  // tokenize() produces [] for a property name made only of separator characters (e.g.
+  // "___"). Without an explicit guard, that vacuous truth skips the subset check entirely,
+  // degrading the match to "does the leaf's TYPE name alone satisfy every input token,"
+  // ignoring the field's own name. Confirmed directly before this fix: a field named "___"
+  // on type IssueNumberInfo scored the maximum (5) against an "issue_number" input, while a
+  // normally-named "value" field on the identical type correctly scored 0.
+  const leafFreq = buildLeafFrequency(new Map([["X", indexFields([outField("___", "IssueNumberInfo")])]]));
+  const score = matchScore(input("issue_number"), indexed("___", "IssueNumberInfo"), leafFreq);
+  assert.equal(score, 0);
+});
+
 test("matchScore: exact match with a rare (non-generic) field name scores 4", () => {
   const leafFreq = buildLeafFrequency(new Map([["X", indexFields([outField("sha", "Commit")])]]));
   const score = matchScore(input("sha"), indexed("sha", "Commit"), leafFreq);
