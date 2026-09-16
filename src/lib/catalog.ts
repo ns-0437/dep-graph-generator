@@ -43,7 +43,21 @@ export function requiredInputsOf(tool: Tool): InputField[] {
   // properties/required shape, so falling back to the latter is a safe, direct extension,
   // not a guess at a different structure.
   const schema = tool.inputParameters ?? tool.function?.parameters;
-  const required: string[] = schema?.required ?? [];
+  const required = schema?.required ?? [];
+  // `required` is typed as string[] above, but the source is untrusted JSON -- a hand-edited
+  // or malformed catalog can put a non-array value there (a single string, an object) with
+  // no runtime check catching it, and `.map` on a non-array throws an opaque "required.map
+  // is not a function" TypeError with no indication which tool or field caused it. Confirmed
+  // directly before this fix. Same "fail loudly with a clear, actionable message" philosophy
+  // loadCatalog already uses for a malformed catalog shape, rather than silently treating a
+  // malformed tool as having zero required inputs (which would just as silently drop real
+  // edges with no indication why).
+  if (!Array.isArray(required)) {
+    throw new Error(
+      `tool "${slugOf(tool) ?? "<no slug>"}" has a malformed required field (expected an ` +
+        `array of field names, got ${typeof required}) in its input schema`,
+    );
+  }
   return required.map((name) => ({ name, tokens: tokenize(name) }));
 }
 

@@ -25,6 +25,22 @@ test("requiredInputsOf returns [] when there's no inputParameters.required", () 
   assert.deepEqual(requiredInputsOf({}), []);
 });
 
+test("requiredInputsOf throws a clear error instead of crashing on a malformed (non-array) required field", () => {
+  // Regression guard: `required` is typed as string[] but the source is untrusted JSON --
+  // a hand-edited or malformed catalog can put a non-array value there with no runtime check
+  // catching it, and the old code's `.map` on that value threw an opaque "required.map is
+  // not a function" TypeError with no indication which tool caused it. Confirmed directly
+  // before this fix, for both a string and an object value.
+  assert.throws(
+    () => requiredInputsOf({ slug: "BAD_TOOL", inputParameters: { required: "owner" } }),
+    /tool "BAD_TOOL" has a malformed required field/,
+  );
+  assert.throws(
+    () => requiredInputsOf({ inputParameters: { required: { owner: true } } }),
+    /tool "<no slug>" has a malformed required field/,
+  );
+});
+
 test("requiredInputsOf falls back to tool.function.parameters for OpenAI function-calling shaped tools", () => {
   // Regression guard: slugOf already falls back to tool.function?.name for this shape (see
   // its own test above), but requiredInputsOf didn't -- a catalog fully in OpenAI
