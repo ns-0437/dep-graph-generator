@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-rliPJP2NUv86d5oi699upNQaT0JyAIGXtCvRPg8mWIg='; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none';" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-SlMwKk33+U9vz34LM0GjFJlo8MOvpdiry4i8yH81ncQ='; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none';" />
 <title>Dependency Graph</title>
 <style>
   html, body { margin:0; height:100%; background:#0b0d12; color:#e6e6e6; font-family:-apple-system,Segoe UI,sans-serif; overflow:hidden; }
@@ -221,7 +221,15 @@ const GRAPH = {"nodes":[{"id":"GITHUB_ABORT_REPOSITORY_MIGRATION","service":"rep
     for (let i = nodes.length - 1; i >= 0; i--) {
       const node = nodes[i];
       const dx = node.x - wx, dy = node.y - wy;
-      if (Math.sqrt(dx * dx + dy * dy) < 10) return node;
+      // The "10" here is a screen-pixel hit tolerance (matching the largest rendered node
+      // radius, see draw()'s node-radius variable), but dx/dy are in WORLD units, not screen
+      // units -- without
+      // scaling by view.scale, the effective screen-space hit radius silently shrinks/grows
+      // with zoom: 0.5px at the min zoom bound (0.05), so a click square on a rendered node
+      // misses, and 60px at the max zoom bound (6), so a click 50px away from a node still
+      // registers as a hit. Multiplying by view.scale converts the comparison back into
+      // screen-space, matching what's actually drawn.
+      if (Math.sqrt(dx * dx + dy * dy) * view.scale < 10) return node;
     }
     return null;
   }
@@ -286,9 +294,13 @@ const GRAPH = {"nodes":[{"id":"GITHUB_ABORT_REPOSITORY_MIGRATION","service":"rep
     draw();
   });
 
-  searchBox.addEventListener("input", () => {
+  function updateMatchCount() {
     const q = searchBox.value.trim().toLowerCase();
     matchCountEl.textContent = q ? nodes.filter((n) => n.id.toLowerCase().includes(q)).length + " match(es)" : "";
+  }
+
+  searchBox.addEventListener("input", () => {
+    updateMatchCount();
     draw();
   });
   showIsolatedBox.addEventListener("change", () => {
@@ -296,6 +308,13 @@ const GRAPH = {"nodes":[{"id":"GITHUB_ABORT_REPOSITORY_MIGRATION","service":"rep
     setTimeout(() => {
       buildDataset(showIsolatedBox.checked);
       layout(showIsolatedBox.checked ? 120 : 220);
+      // buildDataset just replaced the nodes array (toggling isolated nodes in or out), so a match
+      // count printed for the current search query -- if any -- is now stale relative to the
+      // new node set. Confirmed directly: searching a term that only matches a currently-
+      // hidden isolated node showed "0 match(es)" both before AND after checking "show
+      // isolated" (which correctly reveals and highlights that node on the canvas), because
+      // only searchBox's own "input" handler recomputed the printed count.
+      updateMatchCount();
       draw();
       if (loadingEl) loadingEl.style.display = "none";
     }, 0);
