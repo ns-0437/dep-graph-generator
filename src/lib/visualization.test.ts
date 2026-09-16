@@ -110,6 +110,42 @@ test("renderVisualizationHtml scales the canvas backing buffer by devicePixelRat
   assert.ok(html.includes("ctx.setTransform"), "must apply a matching context transform so drawing code stays in CSS-pixel units");
 });
 
+test("renderVisualizationHtml's nodeAt hit-test scales the hit radius with the current zoom", () => {
+  // Regression guard for a real bug: nodeAt compared world-space distance against a fixed
+  // "10" threshold meant to be a SCREEN-pixel hit tolerance (matching the largest rendered
+  // node radius), but never scaled it by view.scale -- so the effective screen-space hit
+  // radius silently shrank/grew with zoom. At the min zoom bound (0.05) it shrank to 0.5px
+  // (a click square on a visibly rendered node missed); at the max zoom bound (6) it grew to
+  // 60px (a click 50px away from a node still registered as a hit). Verified by extracting
+  // the actual nodeAt function from the rendered script and running it with a mocked
+  // toWorld/view -- not just checking the source text for a token.
+  const html = renderVisualizationHtml({ nodes: [{ id: "A" }], edges: [] });
+  const script = html.match(/<script>([\s\S]*)<\/script>/)?.[1];
+  assert.ok(script, "the script tag must exist");
+  const nodeAtSrc = script!.match(/function nodeAt\(sx, sy\) \{[\s\S]*?\n {2}\}/)?.[0];
+  assert.ok(nodeAtSrc, "nodeAt function must exist in the embedded script");
+
+  function runNodeAt(scale: number, screenOffsetPx: number): unknown {
+    const nodes = [{ x: 0, y: 0, id: "A" }];
+    const view = { scale };
+    const fn = new Function(
+      "nodes",
+      "view",
+      `function toWorld(x, y) { return [x / view.scale, y / view.scale]; }
+       ${nodeAtSrc}
+       return nodeAt(${screenOffsetPx}, 0);`,
+    );
+    return fn(nodes, view);
+  }
+
+  // Sanity check: at scale 1, old and new formulas agree (multiplying by 1 changes nothing).
+  assert.ok(runNodeAt(1, 8), "scale 1: an 8px-away click should hit");
+  assert.equal(runNodeAt(1, 50), null, "scale 1: a 50px-away click should miss");
+
+  assert.ok(runNodeAt(0.05, 8), "min zoom (0.05): an 8px-away click must still hit");
+  assert.equal(runNodeAt(6, 50), null, "max zoom (6): a 50px-away click must not falsely hit");
+});
+
 test("renderVisualizationHtml still embeds normal graph data intact", () => {
   const html = renderVisualizationHtml({
     nodes: [{ id: "GITHUB_CREATE_AN_ISSUE", service: "issues" }],

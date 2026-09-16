@@ -209,7 +209,15 @@ const GRAPH = ${escapeForInlineScript(JSON.stringify(graph))};
     for (let i = nodes.length - 1; i >= 0; i--) {
       const node = nodes[i];
       const dx = node.x - wx, dy = node.y - wy;
-      if (Math.sqrt(dx * dx + dy * dy) < 10) return node;
+      // The "10" here is a screen-pixel hit tolerance (matching the largest rendered node
+      // radius, see draw()'s node-radius variable), but dx/dy are in WORLD units, not screen
+      // units -- without
+      // scaling by view.scale, the effective screen-space hit radius silently shrinks/grows
+      // with zoom: 0.5px at the min zoom bound (0.05), so a click square on a rendered node
+      // misses, and 60px at the max zoom bound (6), so a click 50px away from a node still
+      // registers as a hit. Multiplying by view.scale converts the comparison back into
+      // screen-space, matching what's actually drawn.
+      if (Math.sqrt(dx * dx + dy * dy) * view.scale < 10) return node;
     }
     return null;
   }
