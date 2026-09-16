@@ -511,6 +511,18 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   both a string and an object value. Fixed with the same "fail loudly with a clear,
   actionable message" philosophy `loadCatalog` already uses for a malformed catalog shape:
   throws naming the offending tool's slug and what was actually found.
+- `eval/sample-edges.ts` and `eval/sample-unresolved.ts` each had their own `toolSummary()`
+  helper computing `requiredInputs` as `t.inputParameters?.required ?? []` — a copy of
+  `requiredInputsOf`'s logic from *before* it gained the `tool.function?.parameters` fallback
+  above. For a tool in that shape, this display-only summary — shown to a human labeler
+  reviewing why an edge was or wasn't produced — would show `requiredInputs: []` even though
+  the tool genuinely requires fields, potentially misleading the labeling verdict. **Confirmed
+  directly**: `requiredInputsOf` on a function-calling-shaped tool correctly found `["repo",
+  "title"]`, while the old expression evaluated to `[]` for the identical tool. Fixed by
+  having both `toolSummary()` functions call `requiredInputsOf(t)` directly instead of
+  duplicating its logic, so this display-only summary can't drift out of sync with the actual
+  matching logic again. No effect on the real GitHub catalog (it's in the documented shape,
+  not the function-calling one).
 - (Checked, deliberately not acted on: `npm outdated` shows both `openai` and `typescript`
   have a major version available beyond what the `^` ranges in package.json allow — current
   major versions are patched and current within themselves. Bumping either is a real,
