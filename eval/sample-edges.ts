@@ -18,7 +18,7 @@
  * write/restore-after around the exact same path.
  */
 import { readFileSync, writeFileSync } from "fs";
-import { loadCatalog, slugOf } from "../src/lib/catalog.js";
+import { loadCatalog, slugOf, requiredInputsOf } from "../src/lib/catalog.js";
 import { flattenOutputs } from "../src/lib/schema.js";
 import { indexFields, buildLeafFrequency, matchScore } from "../src/lib/match.js";
 import type { IndexedField } from "../src/lib/match.js";
@@ -105,10 +105,17 @@ const sampleTier4 = shuffle(tier4, rand).slice(0, PER_TIER);
 // github_catalog.json when it was generated; the `t ? ... : null` fallback below is only
 // reachable on a mismatch between those two files (see justify()'s docs above for the
 // identical reasoning).
+// requiredInputs below was `t.inputParameters?.required ?? []` -- a stale duplicate of
+// requiredInputsOf's logic that predates its OpenAI function-calling shape fallback (see
+// catalog.ts). For a tool in that shape, this display-only summary would show
+// requiredInputs: [] even though the tool genuinely requires fields (visible via
+// tool.function.parameters.required), potentially misleading a human labeler reviewing why
+// an edge was (or wasn't) produced. Now reuses the same function the actual matching logic
+// calls, so the two can't drift apart again.
 function toolSummary(slug: string) {
   const t = toolBySlug.get(slug);
   /* c8 ignore next */
-  return t ? { slug, description: t.description ?? null, requiredInputs: t.inputParameters?.required ?? [] } : null;
+  return t ? { slug, description: t.description ?? null, requiredInputs: requiredInputsOf(t).map((f) => f.name) } : null;
 }
 
 function buildEntry(e: (typeof withEvidence)[number]) {

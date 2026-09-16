@@ -118,10 +118,16 @@ const sampled = shuffle(unresolved, rand).slice(0, SAMPLE_SIZE);
 
 // Every consumer slug sampled here comes from requiredByTool's own keys, which is built from
 // toolBySlug -- t is always found; only reachable on an internal inconsistency.
+//
+// requiredInputs below was `t.inputParameters?.required ?? []` -- a stale duplicate of
+// requiredInputsOf's logic that predates its OpenAI function-calling shape fallback (see
+// catalog.ts, and sample-edges.ts's identical fix). Now reuses the same function
+// requiredByTool above already calls, so this display-only summary can't drift out of sync
+// with the actual matching logic again.
 function toolSummary(slug: string) {
   const t = toolBySlug.get(slug);
   /* c8 ignore next */
-  return t ? { slug, description: t.description ?? null, requiredInputs: t.inputParameters?.required ?? [] } : null;
+  return t ? { slug, description: t.description ?? null, requiredInputs: requiredInputsOf(t).map((f) => f.name) } : null;
 }
 
 const entries = sampled.map((u) => ({
