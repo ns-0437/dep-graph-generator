@@ -473,6 +473,44 @@ infrastructure, no CI. "Testing" meant reading `npm run selfcheck`'s console out
   complete in under a millisecond; re-ran the full generator against the real GitHub catalog
   afterward and confirmed identical output (1889 edges, unchanged) — this is a pure
   performance fix.
+- `nodeAt` in the generated visualization compared world-space distance against a fixed
+  `"10"` threshold meant to be a screen-pixel hit tolerance (matching the largest rendered
+  node radius, which is always a fixed 3–10 screen pixels regardless of zoom), but never
+  scaled that comparison by `view.scale`. **Confirmed directly**: at the min zoom bound
+  (0.05) the effective screen-space hit radius was 0.5px (a click square on a visibly
+  rendered node missed); at the max zoom bound (6) it was 60px (a click 50px away from a node
+  still registered as a hit). Fixed by multiplying the world-space distance by `view.scale`
+  before comparing, converting the comparison back into screen-space. Verified by extracting
+  the real `nodeAt` function from the rendered script and running it with a mocked
+  `view`/`toWorld` across scale 0.05, 1, and 6; also loaded the regenerated `graph.html` in a
+  real browser afterward with no console errors.
+- Toggling "show isolated" calls `buildDataset`/`layout`/`draw`, which replaces the `nodes`
+  array entirely (revealing or hiding isolated nodes) and correctly re-highlights matches on
+  the canvas — but only the search box's own `"input"` handler recomputed the printed
+  `"N match(es)"` count, so it stayed stale relative to the new node set. **Confirmed live in
+  a browser**: searching a term matching only a currently-hidden isolated node
+  (`GITHUB_ABORT_REPOSITORY_MIGRATION`) correctly showed `"0 match(es)"`; checking "show
+  isolated" revealed and highlighted that node on the canvas, but the count stayed at
+  `"0 match(es)"` before this fix, updating to `"1 match(es)"` after. Fixed by factoring the
+  match-count computation into a shared `updateMatchCount()` function called from both
+  handlers.
+- `matchScore`'s `leafTokens.every(...)` is vacuously `true` when `leafTokens` is `[]` —
+  `tokenize()` produces `[]` for any property name made only of separator characters (e.g.
+  `"___"`). Without a guard, that vacuous truth skipped the subset check entirely, degrading
+  the match to "does the leaf's TYPE name alone satisfy every input token," ignoring the
+  field's own name. **Confirmed directly**: a field named `"___"` on type `IssueNumberInfo`
+  scored the maximum (5) against an `"issue_number"` input, while a normally-named `"value"`
+  field on the identical type correctly scored 0. Not present in the real catalog today
+  (checked: 0 of 26161 real output leaf field names tokenize to `[]`), but the project
+  explicitly promises to generalize to any toolkit's catalog. Fixed with an explicit early
+  return for an empty `leafTokens`.
+- `requiredInputsOf`'s `required` field is typed as `string[]`, but the source is untrusted
+  JSON — a hand-edited or malformed catalog can put a non-array value there with no runtime
+  check catching it, and calling `.map` on it threw an opaque `"required.map is not a
+  function"` TypeError with no indication which tool caused it. **Confirmed directly** for
+  both a string and an object value. Fixed with the same "fail loudly with a clear,
+  actionable message" philosophy `loadCatalog` already uses for a malformed catalog shape:
+  throws naming the offending tool's slug and what was actually found.
 - (Checked, deliberately not acted on: `npm outdated` shows both `openai` and `typescript`
   have a major version available beyond what the `^` ranges in package.json allow — current
   major versions are patched and current within themselves. Bumping either is a real,
