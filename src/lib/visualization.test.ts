@@ -146,6 +146,28 @@ test("renderVisualizationHtml's nodeAt hit-test scales the hit radius with the c
   assert.equal(runNodeAt(6, 50), null, "max zoom (6): a 50px-away click must not falsely hit");
 });
 
+test("renderVisualizationHtml recomputes the search match-count when 'show isolated' is toggled, not just on typing", () => {
+  // Regression guard: toggling "show isolated" calls buildDataset/layout/draw, which
+  // replaces the `nodes` array entirely (revealing or hiding isolated nodes) and correctly
+  // re-highlights matches on the canvas -- but only searchBox's own "input" handler used to
+  // recompute the printed "N match(es)" count, leaving it stale relative to the new node
+  // set. E.g. searching a term that only matches a currently-hidden isolated node showed
+  // "0 match(es)" both before AND after checking "show isolated" (which correctly reveals
+  // that node on the canvas). This can't be executed end-to-end here (no canvas/DOM in
+  // Node), so it's checked structurally: the match-count logic must be a single shared
+  // function, and both handlers that can change which nodes exist or are visible must call it.
+  const html = renderVisualizationHtml({ nodes: [], edges: [] });
+  const script = html.match(/<script>([\s\S]*)<\/script>/)?.[1];
+  assert.ok(script, "the script tag must exist");
+  assert.match(script!, /function updateMatchCount\(\)/, "match-count logic must be a single shared function, not duplicated per handler");
+  const searchHandler = script!.match(/searchBox\.addEventListener\("input", \(\) => \{[\s\S]*?\n {2}\}\);/)?.[0];
+  const isolatedHandler = script!.match(/showIsolatedBox\.addEventListener\("change", \(\) => \{[\s\S]*?\n {2}\}\);/)?.[0];
+  assert.ok(searchHandler, "searchBox's input handler must exist");
+  assert.ok(isolatedHandler, "showIsolatedBox's change handler must exist");
+  assert.match(searchHandler!, /updateMatchCount\(\)/, "typing a search query must update the match count");
+  assert.match(isolatedHandler!, /updateMatchCount\(\)/, "toggling show-isolated must also update the match count");
+});
+
 test("renderVisualizationHtml still embeds normal graph data intact", () => {
   const html = renderVisualizationHtml({
     nodes: [{ id: "GITHUB_CREATE_AN_ISSUE", service: "issues" }],

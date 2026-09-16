@@ -282,9 +282,13 @@ const GRAPH = ${escapeForInlineScript(JSON.stringify(graph))};
     draw();
   });
 
-  searchBox.addEventListener("input", () => {
+  function updateMatchCount() {
     const q = searchBox.value.trim().toLowerCase();
     matchCountEl.textContent = q ? nodes.filter((n) => n.id.toLowerCase().includes(q)).length + " match(es)" : "";
+  }
+
+  searchBox.addEventListener("input", () => {
+    updateMatchCount();
     draw();
   });
   showIsolatedBox.addEventListener("change", () => {
@@ -292,6 +296,13 @@ const GRAPH = ${escapeForInlineScript(JSON.stringify(graph))};
     setTimeout(() => {
       buildDataset(showIsolatedBox.checked);
       layout(showIsolatedBox.checked ? 120 : 220);
+      // buildDataset just replaced the nodes array (toggling isolated nodes in or out), so a match
+      // count printed for the current search query -- if any -- is now stale relative to the
+      // new node set. Confirmed directly: searching a term that only matches a currently-
+      // hidden isolated node showed "0 match(es)" both before AND after checking "show
+      // isolated" (which correctly reveals and highlights that node on the canvas), because
+      // only searchBox's own "input" handler recomputed the printed count.
+      updateMatchCount();
       draw();
       if (loadingEl) loadingEl.style.display = "none";
     }, 0);
