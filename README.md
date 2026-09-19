@@ -113,3 +113,7 @@ once you are done, run `litmus submit` from your assessment folder. make sure yo
 your work is tracked automatically while you work (file changes, git history, and AI-tool prompts) and included when you `litmus submit`. there is nothing to run, just commit often.
 
 NOTE:  Feel free to use LLM, you will be judged by the quality of output, eval...
+
+## License
+
+MIT, see [LICENSE](LICENSE).
