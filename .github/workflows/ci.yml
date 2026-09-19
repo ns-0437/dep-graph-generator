@@ -20,7 +20,7 @@ jobs:
         # actually confirmed working, not left claiming a number that had just failed.
         node-version: ["20.20.2", "22"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
