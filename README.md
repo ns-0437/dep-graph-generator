@@ -114,6 +114,10 @@ your work is tracked automatically while you work (file changes, git history, an
 
 NOTE:  Feel free to use LLM, you will be judged by the quality of output, eval...
 
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and PR conventions, and [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
