@@ -1,4 +1,7 @@
-# build a tool dependency graph generator (60-120 mins)
+# dep-graph-generator
+
+Generates a dependency graph from a Composio toolkit catalog: an edge means one tool's outputs
+feed another tool's required inputs.
 
 [![CI](https://github.com/ns-0437/dep-graph-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/ns-0437/dep-graph-generator/actions/workflows/ci.yml)
 
