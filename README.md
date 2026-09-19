@@ -117,3 +117,10 @@ NOTE:  Feel free to use LLM, you will be judged by the quality of output, eval..
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+## Project structure
+
+- `src/generate.ts` — entry point; reads a catalog and writes `dependency_graph.json`.
+- `src/lib/` — catalog parsing, tokenizing, matching, schema and visualization logic, each with a `*.test.ts` beside it.
+- `src/selfcheck.ts` — the provenance and edge checks run by `npm run selfcheck`.
+- `eval/` — scripts and results for measuring edge precision and recall.
