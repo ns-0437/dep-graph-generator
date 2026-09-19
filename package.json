@@ -9,7 +9,16 @@
     "type": "git",
     "url": "https://github.com/ns-0437/dep-graph-generator.git"
   },
-  "keywords": ["dependency-graph", "composio", "tool-catalog", "code-generation"],
+  "homepage": "https://ns-0437.github.io/dep-graph-generator/",
+  "bugs": {
+    "url": "https://github.com/ns-0437/dep-graph-generator/issues"
+  },
+  "keywords": [
+    "dependency-graph",
+    "composio",
+    "tool-catalog",
+    "code-generation"
+  ],
   "engines": {
     "node": ">=20.20.2"
   },
