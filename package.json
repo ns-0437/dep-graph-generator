@@ -35,7 +35,7 @@
     "eval:recall": "node --import tsx eval/compute-recall.ts"
   },
   "dependencies": {
-    "openai": "^6.48.0"
+    "openai": "^7.20.0"
   },
   "devDependencies": {
     "tsx": "^4.19.0",
