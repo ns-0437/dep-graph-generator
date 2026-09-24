@@ -210,7 +210,7 @@ Known limitations (heuristic can't catch these):
   changing runtime behavior (regenerated `dependency_graph.json`/`graph.html` and diffed
   against the pre-fix output: byte-identical, since `JSON.stringify` already drops
   `undefined`-valued keys either way).
-- `npm test` — 115 tests via Node's built-in test runner (`node --test`, no extra framework
+- `npm test` — 143 tests via Node's built-in test runner (`node --test`, no extra framework
   dependency): unit tests for every `lib/*` module and every `eval/*`/`eval/lib/*` script,
   end-to-end tests calling the real exported `generate()` (against the synthetic Slack
   catalog, the actual GitHub catalog, and — via an injected fake LLM client — cases that
